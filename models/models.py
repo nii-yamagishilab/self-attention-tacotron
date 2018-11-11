@@ -208,7 +208,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                     "alignment5": decoder_self_attention_alignment[3] if num_self_alignments >= 4 else None,
                     "source": features.source,
                     "text": features.text,
-                    "accent_type": features.accent_type,
+                    "accent_type": features.accent_type if params.use_accent_type else None,
                 }
                 predictions = dict(filter(lambda xy: xy[1] is not None, predictions.items()))
                 return tf.estimator.EstimatorSpec(mode, predictions=predictions)
@@ -463,7 +463,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     "alignment8": self_attention_alignment[3] if num_self_alignments >= 4 else None,
                     "source": features.source,
                     "text": features.text,
-                    "accent_type": features.accent_type,
+                    "accent_type": features.accent_type if params.use_accent_type else None,
                 }
                 predictions = dict(filter(lambda xy: xy[1] is not None, predictions.items()))
                 return tf.estimator.EstimatorSpec(mode, predictions=predictions)
@@ -731,7 +731,7 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                     "alignment8": self_attention_alignment[3] if num_self_alignments >= 4 else None,
                     "source": features.source,
                     "text": features.text,
-                    "accent_type": features.accent_type,
+                    "accent_type": features.accent_type if params.use_accent_type else None,
                 }
                 predictions = dict(filter(lambda xy: xy[1] is not None, predictions.items()))
                 return tf.estimator.EstimatorSpec(mode, predictions=predictions)
@@ -993,7 +993,7 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
                     "alignment": alignment,
                     "source": features.source,
                     "text": features.text,
-                    "accent_type": features.accent_type,
+                    "accent_type": features.accent_type if params.use_accent_type else None,
                 }
                 predictions = dict(filter(lambda xy: xy[1] is not None, predictions.items()))
                 return tf.estimator.EstimatorSpec(mode, predictions=predictions)

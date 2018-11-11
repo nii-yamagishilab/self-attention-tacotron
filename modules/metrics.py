@@ -5,7 +5,6 @@
 # ==============================================================================
 """  """
 
-
 import tensorflow as tf
 import os
 from typing import List
@@ -32,6 +31,41 @@ def plot_mels(mel, mel_predicted, mel_input, _id, key, global_step, filename):
                    origin="lower bottom", aspect="auto", cmap="magma", vmin=0.0, vmax=1.0)
     fig.colorbar(im, ax=ax)
     fig.suptitle(f"record ID: {_id}, key: {key}\nglobal step: {global_step}")
+    fig.savefig(filename, format='png')
+    plt.close()
+
+
+def plot_predictions(alignments, mel, mel_predicted, text, key, filename):
+    from matplotlib import pylab as plt
+    num_alignment = len(alignments)
+    num_rows = num_alignment + 3
+    fig = plt.figure(figsize=(14, num_rows * 3))
+
+    for i, alignment in enumerate(alignments):
+        ax = fig.add_subplot(num_rows, 1, i + 1)
+        im = ax.imshow(
+            alignment,
+            aspect='auto',
+            origin='lower',
+            interpolation='none',
+            cmap='jet')
+        fig.colorbar(im, ax=ax)
+        xlabel = 'Decoder timestep'
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel('Encoder timestep')
+        ax.set_title("layer {}".format(i + 1))
+
+    fig.subplots_adjust(wspace=0.4, hspace=0.6)
+
+    ax = fig.add_subplot(num_rows, 1, num_alignment + 1)
+    im = ax.imshow(mel.T, origin="lower bottom", aspect="auto", cmap="magma")
+    fig.colorbar(im, ax=ax)
+    ax = fig.add_subplot(num_rows, 1, num_alignment + 2, sharex=ax)
+    im = ax.imshow(mel_predicted.T,
+                   origin="lower bottom", aspect="auto", cmap="magma")
+    fig.colorbar(im, ax=ax)
+
+    fig.suptitle(f"record ID: {key}\ninput text: {str(text)}")
     fig.savefig(filename, format='png')
     plt.close()
 
@@ -206,7 +240,6 @@ class MgcLf0MetricsSaver(tf.train.SessionRunHook):
                 for _id, text, align, pred_mgc, gt_mgc, pred_lf0, gt_lf0 in zip(ids, texts, alignments, predicted_mgcs,
                                                                                 ground_truth_mgcs, predicted_lf0s,
                                                                                 ground_truth_lf0s):
-
                     output_filename = "{}_result_step{:09d}_{:d}.png".format(self.mode,
                                                                              global_step_value, _id)
                     plot_alignment(align, text.decode('utf-8'), _id, global_step_value,

@@ -50,19 +50,18 @@ class MelData(
     pass
 
 
-class SourceDataWithMelPrediction(
-    namedtuple("SourceDataWithMelPrediction",
-               ["id",
-                "spec", "spec_width",
-                "ground_truth_mel", "ground_truth_mel_width", "ground_truth_target_length",
-                "mel", "mel_width", "target_length", "alignment", "source", "text"])):
-    pass
-
-
-class PredictedMel(
-    namedtuple("PredictedMel",
-               ["id", "predicted_mel", "predicted_mel_width", "predicted_target_length", "alignment", "source",
-                "text"])):
+class SourceDataForPrediction(namedtuple("SourceDataForPrediction",
+                                         ["id",
+                                          "key",
+                                          "source",
+                                          "source_length",
+                                          "speaker_id",
+                                          "age",
+                                          "gender",
+                                          "text",
+                                          "mel",
+                                          "mel_width",
+                                          "target_length"])):
     pass
 
 
@@ -335,3 +334,21 @@ class BatchedDataset(DatasetBase):
 
     def prefetch(self, buffer_size):
         return self.apply(self.dataset.prefetch(buffer_size), self.hparams)
+
+    def merge_target_to_source(self):
+        def convert(s: SourceData, t: TargetData):
+            return SourceDataForPrediction(
+                id=s.id,
+                key=s.key,
+                source=s.source,
+                source_length=s.source_length,
+                speaker_id=s.speaker_id,
+                age=s.age,
+                gender=s.gender,
+                text=s.text,
+                mel=t.mel,
+                mel_width=t.mel_width,
+                target_length=t.target_length,
+            ), t
+
+        return self.apply(self.dataset.map(convert), self.hparams)
