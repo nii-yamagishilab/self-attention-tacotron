@@ -8,10 +8,11 @@ Preprocess VCTK dataset
 usage: preprocess_vctk.py [options] <in_dir> <out_dir>
 
 options:
-    --hparams=<parmas>       Hyper parameters. [default: ].
-    --source-only            Process source only.
-    --target-only            Process target only.
-    -h, --help               Show help message.
+    --hparams=<parmas>                  Ad-hoc replacement of hyper parameters. [default: ].
+    --hparam-json-file=<path>           JSON file contains hyper parameters.
+    --source-only                       Process source only.
+    --target-only                       Process target only.
+    -h, --help                          Show help message.
 
 """
 
@@ -30,6 +31,11 @@ if __name__ == "__main__":
     out_dir = args["<out_dir>"]
     source_only = args["--source-only"]
     target_only = args["--target-only"]
+
+    if args["--hparam-json-file"]:
+        with open(args["--hparam-json-file"]) as f:
+            json = "".join(f.readlines())
+            hparams.parse_json(json)
 
     hparams.parse(args["--hparams"])
     print(hparams_debug_string())
