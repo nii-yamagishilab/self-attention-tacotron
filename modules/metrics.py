@@ -10,28 +10,6 @@ import os
 from tacotron2.util.metrics import plot_alignment
 
 
-def plot_mels(mel, mel_predicted, mel_input, _id, key, global_step, filename):
-    from matplotlib import pylab as plt
-    fig = plt.figure(figsize=(16, 10))
-    ax = fig.add_subplot(3, 1, 1)
-    ax.set_title("ground truth")
-    im = ax.imshow(mel.T, origin="lower bottom", aspect="auto", cmap="magma", vmin=0.0, vmax=1.0)
-    fig.colorbar(im, ax=ax)
-    ax = fig.add_subplot(3, 1, 2)
-    ax.set_title("output")
-    im = ax.imshow(mel_predicted[:mel.shape[0], :].T,
-                   origin="lower bottom", aspect="auto", cmap="magma", vmin=0.0, vmax=1.0)
-    fig.colorbar(im, ax=ax)
-    ax = fig.add_subplot(3, 1, 3)
-    ax.set_title("input")
-    im = ax.imshow(mel_input[:mel.shape[0], :].T,
-                   origin="lower bottom", aspect="auto", cmap="magma", vmin=0.0, vmax=1.0)
-    fig.colorbar(im, ax=ax)
-    fig.suptitle(f"record ID: {_id}, key: {key}\nglobal step: {global_step}")
-    fig.savefig(filename, format='png')
-    plt.close()
-
-
 def plot_predictions(alignments, mel, mel_predicted, text, key, filename):
     from matplotlib import pylab as plt
     num_alignment = len(alignments)
@@ -63,37 +41,6 @@ def plot_predictions(alignments, mel, mel_predicted, text, key, filename):
     fig.colorbar(im, ax=ax)
 
     fig.suptitle(f"record ID: {key}\ninput text: {str(text)}")
-    fig.savefig(filename, format='png')
-    plt.close()
-
-
-def plot_mgc_lf0_spec(mgc, mgc_predicted, spec, spec_predicted, lf0, lf0_predicted, text, _id, global_step, filename):
-    from matplotlib import pylab as plt
-    fig = plt.figure(figsize=(16, 30))
-    ax = fig.add_subplot(6, 1, 1)
-    im = ax.imshow(mgc.T, origin="lower bottom", aspect="auto", cmap="magma", vmin=-4.0, vmax=4.0)
-    fig.colorbar(im, ax=ax)
-    ax = fig.add_subplot(6, 1, 2)
-    im = ax.imshow(mgc_predicted[:mgc.shape[0], :].T,
-                   origin="lower bottom", aspect="auto", cmap="magma", vmin=-4.0, vmax=4.0)
-    fig.colorbar(im, ax=ax)
-
-    ax = fig.add_subplot(6, 1, 3)
-    im = ax.imshow(spec.T, origin="lower bottom", aspect="auto", cmap="magma", vmin=-40.0, vmax=20.0)
-    fig.colorbar(im, ax=ax)
-    ax = fig.add_subplot(6, 1, 4)
-    im = ax.imshow(spec_predicted[:spec.shape[0], :].T,
-                   origin="lower bottom", aspect="auto", cmap="magma", vmin=-40.0, vmax=20.0)
-    fig.colorbar(im, ax=ax)
-
-    ax = fig.add_subplot(6, 1, 5)
-    im = ax.imshow(lf0.T, origin="lower bottom", aspect="auto", cmap="binary", vmin=0.0, vmax=1.0)
-    fig.colorbar(im, ax=ax)
-    ax = fig.add_subplot(6, 1, 6)
-    im = ax.imshow(lf0_predicted[:mgc.shape[0], :].T,
-                   origin="lower bottom", aspect="auto", cmap="binary", vmin=0.0, vmax=1.0)
-    fig.colorbar(im, ax=ax)
-    fig.suptitle(f"record ID: {_id}\nglobal step: {global_step}\ninput text: {str(text)}")
     fig.savefig(filename, format='png')
     plt.close()
 
