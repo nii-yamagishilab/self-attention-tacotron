@@ -18,9 +18,6 @@ class PreprocessedSourceData(namedtuple("PreprocessedSourceData",
                                          "key",
                                          "source",
                                          "source_length",
-                                         "speaker_id",
-                                         "age",
-                                         "gender",
                                          "text", ])):
     pass
 
@@ -30,9 +27,6 @@ class SourceData(namedtuple("SourceData",
                              "key",
                              "source",
                              "source_length",
-                             "speaker_id",
-                             "age",
-                             "gender",
                              "text", ])):
     pass
 
@@ -48,9 +42,6 @@ class SourceDataForPrediction(namedtuple("SourceDataForPrediction",
                                           "key",
                                           "source",
                                           "source_length",
-                                          "speaker_id",
-                                          "age",
-                                          "gender",
                                           "text",
                                           "mel",
                                           "mel_width",
@@ -64,9 +55,6 @@ def parse_preprocessed_source_data(proto):
         'key': tf.FixedLenFeature((), tf.string),
         'source': tf.FixedLenFeature((), tf.string),
         'source_length': tf.FixedLenFeature((), tf.int64),
-        'speaker_id': tf.FixedLenFeature((), tf.int64),
-        'age': tf.FixedLenFeature((), tf.int64),
-        'gender': tf.FixedLenFeature((), tf.int64),
         'text': tf.FixedLenFeature((), tf.string),
     }
     parsed_features = tf.parse_single_example(proto, features)
@@ -80,9 +68,6 @@ def decode_preprocessed_source_data(parsed):
         key=parsed["key"],
         source=source,
         source_length=parsed["source_length"],
-        speaker_id=parsed["speaker_id"],
-        age=parsed["age"],
-        gender=parsed["gender"],
         text=parsed["text"],
     )
 
@@ -134,8 +119,7 @@ class DatasetSource:
         def convert(inputs: PreprocessedSourceData):
             source = inputs.source
             source_length = inputs.source_length
-            return SourceData(inputs.id, inputs.key, source, source_length, inputs.speaker_id, inputs.age,
-                              inputs.gender, inputs.text)
+            return SourceData(inputs.id, inputs.key, source, source_length, inputs.text)
 
         return DatasetSource._decode_source(source).map(lambda inputs: convert(inputs))
 
@@ -266,9 +250,6 @@ class ZippedDataset(DatasetBase):
                     key=tf.TensorShape([]),
                     source=tf.TensorShape([None]),
                     source_length=tf.TensorShape([]),
-                    speaker_id=tf.TensorShape([]),
-                    age=tf.TensorShape([]),
-                    gender=tf.TensorShape([]),
                     text=tf.TensorShape([]),
                 ),
                 MelData(
@@ -286,9 +267,6 @@ class ZippedDataset(DatasetBase):
                     key="",
                     source=tf.to_int64(0),
                     source_length=tf.to_int64(0),
-                    speaker_id=tf.to_int64(0),
-                    age=tf.to_int64(0),
-                    gender=tf.to_int64(-1),
                     text="",
                 ),
                 MelData(
@@ -335,9 +313,6 @@ class BatchedDataset(DatasetBase):
                 key=s.key,
                 source=s.source,
                 source_length=s.source_length,
-                speaker_id=s.speaker_id,
-                age=s.age,
-                gender=s.gender,
                 text=s.text,
                 mel=t.mel,
                 mel_width=t.mel_width,

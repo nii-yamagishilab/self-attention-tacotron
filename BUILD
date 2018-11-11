@@ -28,18 +28,6 @@ py_binary(
     ],
 )
 
-py_binary(
-    name = "predict_mgc_lf0",
-    srcs = [
-        "predict_mgc_lf0.py",
-    ],
-    srcs_version = "PY3ONLY",
-    default_python_version = "PY3",
-    deps = [
-        "@tacotron2//:tacotron2",
-    ],
-)
-
 py_library(
     name = "modules",
     srcs = glob(
@@ -89,6 +77,18 @@ py_binary(
     name = "preprocess_vctk",
     srcs = [
         "preprocess_vctk.py",
+    ],
+    srcs_version = "PY3ONLY",
+    default_python_version = "PY3",
+    deps = [
+        ":preprocess",
+    ],
+)
+
+py_binary(
+    name = "preprocess_ljspeech",
+    srcs = [
+        "preprocess_ljspeech.py",
     ],
     srcs_version = "PY3ONLY",
     default_python_version = "PY3",
