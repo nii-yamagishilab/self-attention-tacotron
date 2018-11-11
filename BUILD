@@ -17,18 +17,6 @@ py_binary(
 )
 
 py_binary(
-    name = "train_postnet",
-    srcs = [
-        "train_postnet.py",
-    ],
-    srcs_version = "PY3ONLY",
-    default_python_version = "PY3",
-    deps = [
-        "@tacotron2//:tacotron2",
-    ],
-)
-
-py_binary(
     name = "predict_mel",
     srcs = [
         "predict_mel.py",
@@ -44,18 +32,6 @@ py_binary(
     name = "predict_mgc_lf0",
     srcs = [
         "predict_mgc_lf0.py",
-    ],
-    srcs_version = "PY3ONLY",
-    default_python_version = "PY3",
-    deps = [
-        "@tacotron2//:tacotron2",
-    ],
-)
-
-py_binary(
-    name = "synthesize",
-    srcs = [
-        "synthesize.py",
     ],
     srcs_version = "PY3ONLY",
     default_python_version = "PY3",

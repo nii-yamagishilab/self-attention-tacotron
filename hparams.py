@@ -36,10 +36,8 @@ hparams = tf.contrib.training.HParams(
     # Dataset
     dataset="vctk.dataset.DatasetSource",  # vctk.dataset.DatasetSource
     num_symbols=256,
-    convert_to_upper=True,
-    source="phoneme",
     source_file_extension="source.tfrecord",
-    target_file_extension="mel.tfrecord",
+    target_file_extension="target.tfrecord",
 
     # Model:
     # tacotron_model= ExtendedTacotronV1Model, DualSourceSelfAttentionTacotronModel, DualSourceSelfAttentionMgcLf0TacotronModel
@@ -79,7 +77,6 @@ hparams = tf.contrib.training.HParams(
     self_attention_num_hop=1,
     self_attention_encoder_out_units=32,
     self_attention_drop_rate=0.05,
-    max_position=200,
     self_attention_transformer_num_conv_layers=1,
     self_attention_transformer_kernel_size=5,
 
@@ -162,8 +159,6 @@ hparams = tf.contrib.training.HParams(
 
     # Eval:
     max_iters=500,
-    griffin_lim_iters=60,
-    power=1.5,  # Power to raise magnitudes to prior to Griffin-Lim
     num_evaluation_steps=64,
     eval_start_delay_secs=120,
     eval_throttle_secs=600,

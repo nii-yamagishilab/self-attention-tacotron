@@ -6,7 +6,7 @@ from modules.module import ZoneoutEncoderV1, ExtendedDecoder, EncoderV1WithAccen
     SelfAttentionCBHGEncoder, DualSourceDecoder, TransformerDecoder, \
     DualSourceTransformerDecoder, SelfAttentionCBHGEncoderWithAccentType, \
     MgcLf0Decoder, MgcLf0DualSourceDecoder, DualSourceMgcLf0TransformerDecoder
-from modules.metrics import PostNetV2MetricsSaver, MgcLf0MetricsSaver
+from modules.metrics import MgcLf0MetricsSaver
 
 
 class ExtendedTacotronV1Model(tf.estimator.Estimator):
@@ -1075,35 +1075,35 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
 def encoder_factory(params, is_training):
     if params.encoder == "SelfAttentionCBHGEncoderWithAccentType":
         encoder = SelfAttentionCBHGEncoderWithAccentType(is_training,
-                                                          cbhg_out_units=params.cbhg_out_units,
-                                                          conv_channels=params.conv_channels,
-                                                          max_filter_width=params.max_filter_width,
-                                                          projection1_out_channels=params.projection1_out_channels,
-                                                          projection2_out_channels=params.projection2_out_channels,
-                                                          num_highway=params.num_highway,
-                                                          self_attention_out_units=params.self_attention_out_units,
-                                                          self_attention_num_heads=params.self_attention_num_heads,
-                                                          self_attention_num_hop=params.self_attention_num_hop,
-                                                          self_attention_transformer_num_conv_layers=params.self_attention_transformer_num_conv_layers,
-                                                          self_attention_transformer_kernel_size=params.self_attention_transformer_kernel_size,
-                                                          prenet_out_units=params.encoder_prenet_out_units_if_accent,
-                                                          accent_type_prenet_out_units=params.accent_type_prenet_out_units,
-                                                          drop_rate=params.encoder_prenet_drop_rate)
+                                                         cbhg_out_units=params.cbhg_out_units,
+                                                         conv_channels=params.conv_channels,
+                                                         max_filter_width=params.max_filter_width,
+                                                         projection1_out_channels=params.projection1_out_channels,
+                                                         projection2_out_channels=params.projection2_out_channels,
+                                                         num_highway=params.num_highway,
+                                                         self_attention_out_units=params.self_attention_out_units,
+                                                         self_attention_num_heads=params.self_attention_num_heads,
+                                                         self_attention_num_hop=params.self_attention_num_hop,
+                                                         self_attention_transformer_num_conv_layers=params.self_attention_transformer_num_conv_layers,
+                                                         self_attention_transformer_kernel_size=params.self_attention_transformer_kernel_size,
+                                                         prenet_out_units=params.encoder_prenet_out_units_if_accent,
+                                                         accent_type_prenet_out_units=params.accent_type_prenet_out_units,
+                                                         drop_rate=params.encoder_prenet_drop_rate)
     elif params.encoder == "SelfAttentionCBHGEncoder":
         encoder = SelfAttentionCBHGEncoder(is_training,
-                                            cbhg_out_units=params.cbhg_out_units,
-                                            conv_channels=params.conv_channels,
-                                            max_filter_width=params.max_filter_width,
-                                            projection1_out_channels=params.projection1_out_channels,
-                                            projection2_out_channels=params.projection2_out_channels,
-                                            num_highway=params.num_highway,
-                                            self_attention_out_units=params.self_attention_out_units,
-                                            self_attention_num_heads=params.self_attention_num_heads,
-                                            self_attention_num_hop=params.self_attention_num_hop,
-                                            self_attention_transformer_num_conv_layers=params.self_attention_transformer_num_conv_layers,
-                                            self_attention_transformer_kernel_size=params.self_attention_transformer_kernel_size,
-                                            prenet_out_units=params.encoder_prenet_out_units,
-                                            drop_rate=params.encoder_prenet_drop_rate)
+                                           cbhg_out_units=params.cbhg_out_units,
+                                           conv_channels=params.conv_channels,
+                                           max_filter_width=params.max_filter_width,
+                                           projection1_out_channels=params.projection1_out_channels,
+                                           projection2_out_channels=params.projection2_out_channels,
+                                           num_highway=params.num_highway,
+                                           self_attention_out_units=params.self_attention_out_units,
+                                           self_attention_num_heads=params.self_attention_num_heads,
+                                           self_attention_num_hop=params.self_attention_num_hop,
+                                           self_attention_transformer_num_conv_layers=params.self_attention_transformer_num_conv_layers,
+                                           self_attention_transformer_kernel_size=params.self_attention_transformer_kernel_size,
+                                           prenet_out_units=params.encoder_prenet_out_units,
+                                           drop_rate=params.encoder_prenet_drop_rate)
     elif params.use_accent_type and params.encoder == "EncoderV1WithAccentType":
         encoder = EncoderV1WithAccentType(is_training,
                                           cbhg_out_units=params.cbhg_out_units,
@@ -1292,84 +1292,3 @@ def tacotron_model_factory(hparams, model_dir, run_config):
     else:
         raise ValueError(f"Unknown Tacotron model: {hparams.tacotron_model}")
     return model
-
-
-class PostNetV2Model(tf.estimator.Estimator):
-
-    def __init__(self, params, model_dir=None, config=None, warm_start_from=None):
-        def model_fn(features, labels, mode, params):
-            is_training = mode == tf.estimator.ModeKeys.TRAIN
-            is_validation = mode == tf.estimator.ModeKeys.EVAL
-            is_prediction = mode == tf.estimator.ModeKeys.PREDICT
-
-            postnet = PostNetV2(out_units=params.num_mels,
-                                num_postnet_layers=params.num_postnet_v2_layers,
-                                kernel_size=params.postnet_v2_kernel_size,
-                                out_channels=params.postnet_v2_out_channels,
-                                is_training=is_training,
-                                drop_rate=params.postnet_v2_drop_rate)
-
-            mel_output = postnet(features.mel)
-
-            global_step = tf.train.get_global_step()
-
-            if mode is not tf.estimator.ModeKeys.PREDICT:
-                loss = self.spec_loss(mel_output, labels.mel, labels.spec_loss_mask)
-
-            if is_training:
-                lr = self.learning_rate_decay(
-                    params.initial_learning_rate, global_step,
-                    params.learning_rate_step_factor) if params.decay_learning_rate else tf.convert_to_tensor(
-                    params.initial_learning_rate)
-                optimizer = tf.train.AdamOptimizer(learning_rate=lr, beta1=params.adam_beta1,
-                                                   beta2=params.adam_beta2, epsilon=params.adam_eps)
-
-                gradients, variables = zip(*optimizer.compute_gradients(loss))
-                clipped_gradients, _ = tf.clip_by_global_norm(gradients, 1.0)
-                # Add dependency on UPDATE_OPS; otherwise batchnorm won't work correctly. See:
-                # https://github.com/tensorflow/tensorflow/issues/1122
-                with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
-                    train_op = optimizer.apply_gradients(zip(clipped_gradients, variables), global_step=global_step)
-                    summary_writer = tf.summary.FileWriter(model_dir)
-                    metrics_hook = PostNetV2MetricsSaver(global_step, mel_output, features.mel, labels.mel,
-                                                         labels.mel_length,
-                                                         features.id,
-                                                         features.key,
-                                                         params.alignment_save_steps,
-                                                         mode, summary_writer)
-                    return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op, training_hooks=[metrics_hook])
-
-            if is_validation:
-                summary_writer = tf.summary.FileWriter(model_dir)
-                metrics_hook = PostNetV2MetricsSaver(global_step, mel_output, features.mel, labels.mel,
-                                                     labels.mel_length,
-                                                     features.id,
-                                                     features.key,
-                                                     1,
-                                                     mode, summary_writer)
-                return tf.estimator.EstimatorSpec(mode, loss=loss, evaluation_hooks=[metrics_hook])
-
-            if is_prediction:
-                return tf.estimator.EstimatorSpec(mode, predictions={
-                    "id": features.id,
-                    "key": features.key,
-                    "predicted_mel": mel_output,
-                    "ground_truth_mel": features.ground_truth_mel,
-                    "ground_truth_mel_length": features.ground_truth_mel_length,
-                    "input_mel": features.mel,
-                    "input_mel_length": features.mel_length,
-                })
-
-        super(PostNetV2Model, self).__init__(
-            model_fn=model_fn, model_dir=model_dir, config=config,
-            params=params, warm_start_from=warm_start_from)
-
-    @staticmethod
-    def spec_loss(y_hat, y, mask):
-        return tf.losses.mean_squared_error(y, y_hat, weights=tf.expand_dims(mask, axis=2))
-
-    @staticmethod
-    def learning_rate_decay(init_rate, global_step, step_factor):
-        warmup_steps = 4000.0
-        step = tf.to_float(global_step * step_factor + 1)
-        return init_rate * warmup_steps ** 0.5 * tf.minimum(step * warmup_steps ** -1.5, step ** -0.5)
