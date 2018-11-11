@@ -171,6 +171,12 @@ hparams = tf.contrib.training.HParams(
     decoder_version="v1",
     zoneout_factor_cell=0.1,
     zoneout_factor_output=0.1,
+
+    # Pre-process
+    trim_top_db=30,
+    trim_frame_length=1024,
+    trim_hop_length=256,
+    num_silent_frames=4,
 )
 
 

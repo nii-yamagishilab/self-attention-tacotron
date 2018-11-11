@@ -52,6 +52,28 @@ py_library(
     ],
 )
 
+py_library(
+    name = "preprocess",
+    srcs = glob(
+        ["preprocess/*.py"],
+        exclude = ["**/*_test.py"],
+    ),
+    srcs_version = "PY3ONLY",
+    deps = [
+         ":utils",
+    ],
+)
+
+py_library(
+    name = "utils",
+    srcs = glob(
+        ["utils/*.py"],
+        exclude = ["**/*_test.py"],
+    ),
+    srcs_version = "PY3ONLY",
+    deps = [],
+)
+
 py_test(
     name = "transformer_test",
     srcs = ["modules/transformer_test.py"],
@@ -60,5 +82,17 @@ py_test(
     deps = [
         ":modules",
         "@tacotron2//:tacotron2",
+    ],
+)
+
+py_binary(
+    name = "preprocess_vctk",
+    srcs = [
+        "preprocess_vctk.py",
+    ],
+    srcs_version = "PY3ONLY",
+    default_python_version = "PY3",
+    deps = [
+        ":preprocess",
     ],
 )

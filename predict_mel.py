@@ -19,7 +19,7 @@ import tensorflow as tf
 import os
 from collections import namedtuple
 from modules.metrics import plot_predictions
-from datasets.tfrecord import write_prediction_result
+from utils.tfrecord import write_prediction_result
 from datasets.dataset_factory import dataset_factory
 from models.models import tacotron_model_factory
 from hparams import hparams, hparams_debug_string

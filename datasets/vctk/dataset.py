@@ -9,7 +9,7 @@ import tensorflow as tf
 import numpy as np
 from collections import namedtuple
 from abc import abstractmethod
-from datasets.tfrecord import parse_preprocessed_mel_data, decode_preprocessed_mel_data, \
+from utils.tfrecord import parse_preprocessed_mel_data, decode_preprocessed_mel_data, \
     PreprocessedMelData
 
 
