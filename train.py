@@ -9,12 +9,13 @@ Usage: train.py [options]
 Options:
     --source-data-root=<dir>            Directory contains preprocessed source features.
     --target-data-root=<dir>            Directory contains preprocessed target features.
-    --checkpoint-dir=<dir>       Directory where to save model checkpoints [default: checkpoints].
-    --selected-list-dir=<dir>    Directory contains test.csv, train.csv, and validation.csv
-    --hparams=<parmas>           Hyper parameters. [default: ].
-    --checkpoint=<path>          Restore model from checkpoint path if given.
-    --multi-gpus                 Use multiple GPUs
-    -h, --help                   Show this help message and exit
+    --checkpoint-dir=<dir>              Directory where to save model checkpoints.
+    --selected-list-dir=<dir>           Directory contains test.csv, train.csv, and validation.csv
+    --hparams=<parmas>                  Ad-hoc replacement of hyper parameters. [default: ].
+    --hparam-json-file=<path>           JSON file contains hyper parameters.
+    --checkpoint=<path>                 Restore model from checkpoint path if given.
+    --multi-gpus                        Use multiple GPUs
+    -h, --help                          Show this help message and exit
 """
 
 from docopt import docopt
@@ -102,6 +103,11 @@ def main():
     target_data_root = args["--target-data-root"]
     selected_list_dir = args["--selected-list-dir"]
     use_multi_gpu = args["--multi-gpus"]
+
+    if args["--hparam-json-file"]:
+        with open(args["--hparam-json-file"]) as f:
+            json = "".join(f.readlines())
+            hparams.parse_json(json)
 
     hparams.parse(args["--hparams"])
 

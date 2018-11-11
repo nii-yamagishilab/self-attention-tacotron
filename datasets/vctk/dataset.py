@@ -6,6 +6,7 @@
 """  """
 
 import tensorflow as tf
+import numpy as np
 from collections import namedtuple
 from abc import abstractmethod
 from datasets.tfrecord import parse_preprocessed_mel_data, decode_preprocessed_mel_data, \
@@ -151,7 +152,11 @@ class DatasetSource:
         def convert(target: PreprocessedMelData):
             r = hparams.outputs_per_step
 
-            mel_with_silence = tf.pad(target.mel, paddings=[[r, r], [0, 0]])
+            mel_normalized = (target.mel - np.array(hparams.average_mel_level_db, dtype=np.float32)) / np.array(
+                hparams.stddev_mel_level_db, dtype=np.float32)
+
+            mel_with_silence = tf.pad(mel_normalized, paddings=[[r, r], [0, 0]],
+                                      constant_values=hparams.silence_mel_level_db)
 
             # +2r for head and tail silence
             target_length = target.target_length + 2 * r
@@ -162,7 +167,7 @@ class DatasetSource:
                 tail_padding = padded_target_length - target_length
                 padding_shape = tf.sparse_tensor_to_dense(
                     tf.SparseTensor(indices=[(0, 1)], values=tf.expand_dims(tail_padding, axis=0), dense_shape=(2, 2)))
-                return lambda: tf.pad(t, paddings=padding_shape)
+                return lambda: tf.pad(t, paddings=padding_shape, constant_values=hparams.silence_mel_level_db)
 
             no_padding_condition = tf.equal(tf.to_int64(0), target_length % r)
 
@@ -297,7 +302,7 @@ class ZippedDataset(DatasetBase):
                 MelData(
                     id=tf.to_int64(0),
                     key="",
-                    mel=tf.to_float(0),
+                    mel=tf.to_float(self.hparams.silence_mel_level_db),
                     mel_width=tf.to_int64(0),
                     target_length=tf.to_int64(0),
                     done=tf.to_float(1),
