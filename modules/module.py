@@ -594,10 +594,6 @@ class Projection:
                                         dtype=dtype,
                                         initializer=tf.zeros_initializer())
 
-            if is_training:
-                tf.summary.histogram(self.kernel.name, self.kernel)
-                tf.summary.histogram(self.bias.name, self.bias)
-
     def __call__(self, inputs, **kwargs):
         shape = inputs.get_shape().as_list()
         matmul = tf.tensordot(inputs, self.kernel, axes=[[len(shape) - 1], [0]])
@@ -626,12 +622,6 @@ class MGCProjection:
                                                shape=[out_units, ],
                                                dtype=dtype,
                                                initializer=tf.zeros_initializer())
-
-            if is_training:
-                tf.summary.histogram(self.dense_kernel1.name, self.dense_kernel1)
-                tf.summary.histogram(self.dense_bias1.name, self.dense_bias1)
-                tf.summary.histogram(self.dense_kernel2.name, self.dense_kernel2)
-                tf.summary.histogram(self.dense_bias2.name, self.dense_bias2)
 
     def __call__(self, inputs, **kwargs):
         shape = inputs.get_shape().as_list()
