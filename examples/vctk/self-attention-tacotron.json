@@ -183,5 +183,8 @@
     "save_checkpoints_steps": 1343,
     "tacotron_model": "DualSourceSelfAttentionTacotronModel",
     "encoder": "SelfAttentionCBHGEncoder",
-    "decoder": "DualSourceTransformerDecoder"
+    "decoder": "DualSourceTransformerDecoder",
+    "use_speaker_embedding": true,
+    "num_speakers": 152,
+    "speaker_embedding_offset": 225
 }

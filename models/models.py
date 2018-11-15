@@ -54,6 +54,11 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
 
             decoder = decoder_factory(params)
 
+            if params.use_speaker_embedding:
+                speaker_embedding = Embedding(params.num_speakers,
+                                              embedding_dim=params.speaker_embedding_dim,
+                                              index_offset=params.speaker_embedding_offset)
+
             target = labels.mel if (is_training or is_validation) else features.mel
 
             embedding_output = embedding(features.source)
@@ -61,8 +66,12 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                 (embedding_output, accent_embedding(features.accent_type)),
                 input_lengths=features.source_length) if params.use_accent_type else encoder(
                 embedding_output, input_lengths=features.source_length)
+
+            speaker_embedding_output = speaker_embedding(features.speaker_id) if params.use_speaker_embedding else None
+
             mel_output, stop_token, decoder_state = decoder(encoder_output,
                                                             attention=params.attention,
+                                                            speaker_embed=speaker_embedding_output,
                                                             is_training=is_training,
                                                             is_validation=is_validation or params.use_forced_alignment_mode,
                                                             teacher_forcing=params.use_forced_alignment_mode,
@@ -83,6 +92,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
             if params.use_forced_alignment_mode:
                 mel_output, stop_token, decoder_state = decoder(encoder_output,
                                                                 attention=params.forced_alignment_attention,
+                                                                speaker_embed=speaker_embedding_output,
                                                                 is_training=is_training,
                                                                 is_validation=True,
                                                                 teacher_forcing=False,
@@ -151,6 +161,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                 # validation with teacher forcing
                 mel_output_with_teacher, stop_token_with_teacher, decoder_state_with_teacher = decoder(encoder_output,
                                                                                                        attention=params.attention,
+                                                                                                       speaker_embed=speaker_embedding_output,
                                                                                                        is_training=is_training,
                                                                                                        is_validation=is_validation,
                                                                                                        memory_sequence_length=features.source_length,
@@ -295,6 +306,11 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
             assert params.decoder in ["DualSourceDecoder", "DualSourceTransformerDecoder"]
             decoder = decoder_factory(params)
 
+            if params.use_speaker_embedding:
+                speaker_embedding = Embedding(params.num_speakers,
+                                              embedding_dim=params.speaker_embedding_dim,
+                                              index_offset=params.speaker_embedding_offset)
+
             target = labels.mel if (is_training or is_validation) else features.mel
 
             embedding_output = embedding(features.source)
@@ -303,9 +319,12 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 input_lengths=features.source_length) if params.use_accent_type else encoder(
                 embedding_output, input_lengths=features.source_length)
 
+            speaker_embedding_output = speaker_embedding(features.speaker_id) if params.use_speaker_embedding else None
+
             mel_output, stop_token, decoder_state = decoder((encoder_lstm_output, encoder_self_attention_output),
                                                             attention1=params.attention,
                                                             attention2=params.attention2,
+                                                            speaker_embed=speaker_embedding_output,
                                                             is_training=is_training,
                                                             is_validation=is_validation or params.use_forced_alignment_mode,
                                                             teacher_forcing=params.use_forced_alignment_mode,
@@ -331,6 +350,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 mel_output, stop_token, decoder_state = decoder((encoder_lstm_output, encoder_self_attention_output),
                                                                 attention1=params.forced_alignment_attention,
                                                                 attention2=params.forced_alignment_attention2,
+                                                                speaker_embed=speaker_embedding_output,
                                                                 is_training=is_training,
                                                                 is_validation=True,
                                                                 teacher_forcing=False,
@@ -410,6 +430,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     (encoder_lstm_output, encoder_self_attention_output),
                     attention1=params.attention,
                     attention2=params.attention2,
+                    speaker_embed=speaker_embedding_output,
                     is_training=is_training,
                     is_validation=is_validation,
                     memory_sequence_length=features.source_length,
@@ -551,6 +572,11 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
 
             decoder = decoder_factory(params)
 
+            if params.use_speaker_embedding:
+                speaker_embedding = Embedding(params.num_speakers,
+                                              embedding_dim=params.speaker_embedding_dim,
+                                              index_offset=params.speaker_embedding_offset)
+
             target = (labels.mgc, labels.lf0) if (is_training or is_validation) else (features.mgc, features.lf0)
 
             embedding_output = embedding(features.source)
@@ -559,16 +585,18 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                 input_lengths=features.source_length) if params.use_accent_type else encoder(
                 embedding_output, input_lengths=features.source_length)
 
+            speaker_embedding_output = speaker_embedding(features.speaker_id) if params.use_speaker_embedding else None
+
             mgc_output, lf0_output, stop_token, decoder_state = decoder(
                 (encoder_lstm_output, encoder_self_attention_output),
                 attention1=params.attention,
                 attention2=params.attention2,
+                speaker_embed=speaker_embedding_output,
                 is_training=is_training,
                 is_validation=is_validation or params.use_forced_alignment_mode,
                 teacher_forcing=params.use_forced_alignment_mode,
                 memory_sequence_length=features.source_length,
-                target=target,
-                teacher_alignments=teacher_alignment)
+                target=target)
 
             # arrange to (B, T_memory, T_query)
             self_attention_alignment = [tf.transpose(a, perm=[0, 2, 1]) for a in self_attention_alignment]
@@ -589,6 +617,7 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                     (encoder_lstm_output, encoder_self_attention_output),
                     attention1=params.forced_alignment_attention,
                     attention2=params.forced_alignment_attention2,
+                    speaker_embed=speaker_embedding_output,
                     is_training=is_training,
                     is_validation=True,
                     teacher_forcing=False,
@@ -674,6 +703,7 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                     (encoder_lstm_output, encoder_self_attention_output),
                     attention1=params.attention,
                     attention2=params.attention2,
+                    speaker_embed=speaker_embedding_output,
                     is_training=is_training,
                     is_validation=is_validation,
                     memory_sequence_length=features.source_length,
@@ -831,6 +861,11 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
 
             decoder = decoder_factory(params)
 
+            if params.use_speaker_embedding:
+                speaker_embedding = Embedding(params.num_speakers,
+                                              embedding_dim=params.speaker_embedding_dim,
+                                              index_offset=params.speaker_embedding_offset)
+
             target = (labels.mgc, labels.lf0) if (is_training or is_validation) else (features.mgc, features.lf0)
 
             embedding_output = embedding(features.source)
@@ -839,8 +874,11 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
                 input_lengths=features.source_length) if params.use_accent_type else encoder(
                 embedding_output, input_lengths=features.source_length)
 
+            speaker_embedding_output = speaker_embedding(features.speaker_id) if params.use_speaker_embedding else None
+
             mgc_output, lf0_output, stop_token, decoder_state = decoder(encoder_output,
                                                                         attention=params.attention,
+                                                                        speaker_embed=speaker_embedding_output,
                                                                         is_training=is_training,
                                                                         is_validation=is_validation or params.use_forced_alignment_mode,
                                                                         teacher_forcing=params.use_forced_alignment_mode,
@@ -864,6 +902,7 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
                 mgc_output, lf0_output, stop_token, decoder_state = decoder(
                     encoder_output,
                     attention=params.forced_alignment_attention,
+                    speaker_embed=speaker_embedding_output,
                     is_training=is_training,
                     is_validation=True,
                     teacher_forcing=False,
@@ -942,12 +981,12 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
                 mgc_output_with_teacher, lf0_output_with_teacher, stop_token_with_teacher, decoder_state_with_teacher = decoder(
                     encoder_output,
                     attention=params.attention,
+                    speaker_embed=speaker_embedding_output,
                     is_training=is_training,
                     is_validation=is_validation or params.use_forced_alignment_mode,
                     memory_sequence_length=features.source_length,
                     target_sequence_length=labels.target_length if is_training else None,
                     target=target,
-                    teacher_alignments=teacher_alignment,
                     teacher_forcing=True)
 
                 if params.use_postnet_v2:

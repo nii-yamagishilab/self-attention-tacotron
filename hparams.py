@@ -100,7 +100,7 @@ hparams = tf.contrib.training.HParams(
     ## Decoder V2
     attention_kernel=31,
     attention_filters=32,
-    cumulative_weights=True,
+    cumulative_weights=False,
 
     ## Forward attention
     use_forward_attention_transition_agent=False,
@@ -110,6 +110,12 @@ hparams = tf.contrib.training.HParams(
     decoder_self_attention_num_heads=2,
     decoder_self_attention_num_hop=1,
     decoder_self_attention_drop_rate=0.05,
+
+    ## Speaker Embedding
+    use_speaker_embedding=False,
+    num_speakers=1,
+    speaker_embedding_dim=16,
+    speaker_embedding_offset=0,
 
     ## Post net
     post_net_cbhg_out_units=256,
