@@ -20,14 +20,6 @@ class TextAndPath(namedtuple("TextAndPath", ["id", "key", "wav_path", "labels_pa
     pass
 
 
-def source_metadata_to_tsv(meta):
-    return "\t".join([str(meta.id), meta.filepath, meta.text])
-
-
-def target_metadata_to_tsv(meta):
-    return "\t".join([str(meta.id), meta.filepath, str(meta.n_frames)])
-
-
 def write_preprocessed_target_data(_id: int, key: str, mel: np.ndarray, filename: str):
     raw_mel = mel.tostring()
     example = tf.train.Example(features=tf.train.Features(feature={
