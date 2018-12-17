@@ -1034,7 +1034,7 @@ class DualSourceDecoder(tf.layers.Layer):
 
     def call(self, sources, attention1=None, attention2=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False,
-             memory_sequence_length=None,
+             memory_sequence_length=None, memory2_sequence_length=None,
              target=None, teacher_alignments=None,
              target_sequence_length=None):  # target_sequence_length is not used except TransformerDecoder
         assert is_training is not None
@@ -1064,7 +1064,7 @@ class DualSourceDecoder(tf.layers.Layer):
         attention_mechanism2 = attention_mechanism_factory(AttentionOptions(attention2,
                                                                             self.attention2_out_units,
                                                                             source2,
-                                                                            memory_sequence_length,
+                                                                            memory2_sequence_length,
                                                                             self.attention_kernel,
                                                                             self.attention_filters,
                                                                             self.smoothing,
@@ -1492,7 +1492,8 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
         self.built = True
 
     def call(self, sources, attention1=None, attention2=None, speaker_embed=None, is_training=None, is_validation=None,
-             teacher_forcing=False, memory_sequence_length=None, target_sequence_length=None,
+             teacher_forcing=False, memory_sequence_length=None, memory2_sequence_length=None,
+             target_sequence_length=None,
              target=None, teacher_alignments=(None, None)):
         assert is_training is not None
         assert attention1 is not None
@@ -1521,7 +1522,7 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
         attention_mechanism2 = attention_mechanism_factory(AttentionOptions(attention2,
                                                                             self.attention2_out_units,
                                                                             source2,
-                                                                            memory_sequence_length,
+                                                                            memory2_sequence_length,
                                                                             self.attention_kernel,
                                                                             self.attention_filters,
                                                                             self.smoothing,
@@ -1625,8 +1626,9 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
         self.built = True
 
     def call(self, sources, attention1=None, attention2=None, speaker_embed=None, is_training=None, is_validation=None,
-             teacher_forcing=False, memory_sequence_length=None, target_sequence_length=None,
-             target=None, teacher_alignments=(None, None)):
+             teacher_forcing=False,
+             memory_sequence_length=None, memory2_sequence_length=None,
+             target_sequence_length=None, target=None, teacher_alignments=(None, None)):
         assert is_training is not None
         assert attention1 is not None
         assert attention2 is not None
@@ -1658,7 +1660,7 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
         attention_mechanism2 = attention_mechanism_factory(AttentionOptions(attention2,
                                                                             self.attention2_out_units,
                                                                             source2,
-                                                                            memory_sequence_length,
+                                                                            memory2_sequence_length,
                                                                             self.attention_kernel,
                                                                             self.attention_filters,
                                                                             self.smoothing,

@@ -329,6 +329,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                                             is_validation=is_validation or params.use_forced_alignment_mode,
                                                             teacher_forcing=params.use_forced_alignment_mode,
                                                             memory_sequence_length=features.source_length,
+                                                            memory2_sequence_length=features.source_length,
                                                             target_sequence_length=labels.target_length if is_training else None,
                                                             target=target)
 
@@ -355,6 +356,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                                                 is_validation=True,
                                                                 teacher_forcing=False,
                                                                 memory_sequence_length=features.source_length,
+                                                                memory2_sequence_length=features.source_length,
                                                                 target_sequence_length=labels.target_length if is_training else None,
                                                                 target=target,
                                                                 teacher_alignments=(
@@ -434,6 +436,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     is_training=is_training,
                     is_validation=is_validation,
                     memory_sequence_length=features.source_length,
+                    memory2_sequence_length=features.source_length,
                     target_sequence_length=labels.target_length,
                     target=target,
                     teacher_forcing=True)
@@ -596,6 +599,7 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                 is_validation=is_validation or params.use_forced_alignment_mode,
                 teacher_forcing=params.use_forced_alignment_mode,
                 memory_sequence_length=features.source_length,
+                memory2_sequence_length=features.source_length,
                 target=target)
 
             # arrange to (B, T_memory, T_query)
@@ -622,6 +626,7 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                     is_validation=True,
                     teacher_forcing=False,
                     memory_sequence_length=features.source_length,
+                    memory2_sequence_length=features.source_length,
                     target_sequence_length=labels.target_length if is_training else None,
                     target=target,
                     teacher_alignments=(
@@ -707,6 +712,7 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                     is_training=is_training,
                     is_validation=is_validation,
                     memory_sequence_length=features.source_length,
+                    memory2_sequence_length=features.source_length,
                     target=target,
                     teacher_forcing=True)
 
