@@ -71,6 +71,12 @@ hparams = tf.contrib.training.HParams(
     num_highway=4,
     encoder_prenet_out_units=(256, 128),
 
+    ### Encoder V2
+    encoder_v2_num_conv_layers=3,
+    encoder_v2_kernel_size=5,
+    encoder_v2_out_units=512,
+    encoder_v2_drop_rate=0.5,
+
     ### Self Attention
     self_attention_out_units=32,
     self_attention_num_heads=2,

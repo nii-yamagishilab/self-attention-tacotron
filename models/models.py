@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tacotron2.tacotron.modules import Embedding
-from tacotron2.tacotron.tacotron_v2 import PostNetV2
+from tacotron2.tacotron.tacotron_v2 import PostNetV2, EncoderV2
 from tacotron2.tacotron.hooks import MetricsSaver
 from modules.module import ZoneoutEncoderV1, ExtendedDecoder, EncoderV1WithAccentType, \
     SelfAttentionCBHGEncoder, DualSourceDecoder, TransformerDecoder, \
@@ -19,38 +19,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
 
             embedding = Embedding(params.num_symbols, embedding_dim=params.embedding_dim)
 
-            if params.use_accent_type:
-                accent_embedding = Embedding(params.num_accent_type,
-                                             embedding_dim=params.accent_type_embedding_dim,
-                                             index_offset=params.accent_type_offset)
-
-            if params.use_accent_type:
-                encoder = EncoderV1WithAccentType(is_training,
-                                                  cbhg_out_units=params.cbhg_out_units,
-                                                  conv_channels=params.conv_channels,
-                                                  max_filter_width=params.max_filter_width,
-                                                  projection1_out_channels=params.projection1_out_channels,
-                                                  projection2_out_channels=params.projection2_out_channels,
-                                                  num_highway=params.num_highway,
-                                                  prenet_out_units=params.encoder_prenet_out_units_if_accent,
-                                                  accent_type_prenet_out_units=params.accent_type_prenet_out_units,
-                                                  drop_rate=params.encoder_prenet_drop_rate,
-                                                  use_zoneout=params.use_zoneout_at_encoder,
-                                                  zoneout_factor_cell=params.zoneout_factor_cell,
-                                                  zoneout_factor_output=params.zoneout_factor_output)
-            else:
-                encoder = ZoneoutEncoderV1(is_training,
-                                           cbhg_out_units=params.cbhg_out_units,
-                                           conv_channels=params.conv_channels,
-                                           max_filter_width=params.max_filter_width,
-                                           projection1_out_channels=params.projection1_out_channels,
-                                           projection2_out_channels=params.projection2_out_channels,
-                                           num_highway=params.num_highway,
-                                           prenet_out_units=params.encoder_prenet_out_units,
-                                           drop_rate=params.encoder_prenet_drop_rate,
-                                           use_zoneout=params.use_zoneout_at_encoder,
-                                           zoneout_factor_cell=params.zoneout_factor_cell,
-                                           zoneout_factor_output=params.zoneout_factor_output)
+            encoder = encoder_factory(params, is_training)
 
             decoder = decoder_factory(params)
 
@@ -1176,6 +1145,14 @@ def encoder_factory(params, is_training):
                                    use_zoneout=params.use_zoneout_at_encoder,
                                    zoneout_factor_cell=params.zoneout_factor_cell,
                                    zoneout_factor_output=params.zoneout_factor_output)
+    elif params.encoder == "EncoderV2":
+        encoder = EncoderV2(num_conv_layers=params.encoder_v2_num_conv_layers,
+                            kernel_size=params.encoder_v2_kernel_size,
+                            out_units=params.encoder_v2_out_units,
+                            drop_rate=params.encoder_v2_drop_rate,
+                            zoneout_factor_cell=params.zoneout_factor_cell,
+                            zoneout_factor_output=params.zoneout_factor_output,
+                            is_training=is_training)
     else:
         raise ValueError(f"Unknown encoder: {params.encoder}")
     return encoder
