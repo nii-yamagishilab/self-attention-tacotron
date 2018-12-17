@@ -56,6 +56,11 @@ def predict(hparams,
 
     for v in predictions:
         key = v.key.decode('utf-8')
+        mel_filename = f"{key}.{hparams.predicted_mel_extension}"
+        mel_filepath = os.path.join(output_dir, mel_filename)
+        mel = v.predicted_mel
+        assert mel.shape[1] == hparams.num_mels
+        mel.tofile(mel_filepath, format='<f4')
         text = v.text.decode("utf-8")
         plot_filename = f"{key}.png"
         plot_filepath = os.path.join(output_dir, plot_filename)

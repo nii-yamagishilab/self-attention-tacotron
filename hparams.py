@@ -178,6 +178,7 @@ hparams = tf.contrib.training.HParams(
 
     # Predict
     use_forced_alignment_mode=False,
+    predicted_mel_extension="mfbsp",
 
     # Extention
     use_zoneout_at_encoder=False,
