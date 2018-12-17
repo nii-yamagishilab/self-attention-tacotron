@@ -38,6 +38,7 @@ py_library(
     deps = [
         "@tacotron2//:tacotron2",
     ],
+    visibility = ["//visibility:public"],
 )
 
 py_library(
