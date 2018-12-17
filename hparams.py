@@ -151,8 +151,8 @@ hparams = tf.contrib.training.HParams(
     keep_checkpoint_max=200,
     keep_checkpoint_every_n_hours=1,  # deprecated
     log_step_count_steps=1,
-    alignment_save_steps=1000,
-    save_training_time_metrics=True,
+    alignment_save_steps=10000,
+    save_training_time_metrics=False,
     approx_min_target_length=100,
     suffle_buffer_size=64,
     batch_bucket_width=50,
@@ -172,6 +172,7 @@ hparams = tf.contrib.training.HParams(
     # Eval:
     max_iters=500,
     num_evaluation_steps=64,
+    keep_eval_results_max_epoch=10,
     eval_start_delay_secs=120,
     eval_throttle_secs=600,
 
