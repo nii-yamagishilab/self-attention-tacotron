@@ -27,8 +27,8 @@ from hparams import hparams, hparams_debug_string
 
 class PredictedMel(
     namedtuple("PredictedMel",
-               ["id", "key", "predicted_mel", "predicted_mel_width", "predicted_target_length", "ground_truth_mel",
-                "alignment", "alignment2", "alignment3", "alignment4", "alignment5", "alignment6",
+               ["id", "key", "predicted_mel", "predicted_mel_postnet", "predicted_mel_width", "predicted_target_length",
+                "ground_truth_mel", "alignment", "alignment2", "alignment3", "alignment4", "alignment5", "alignment6",
                 "source", "text", "accent_type"])):
     pass
 
@@ -36,7 +36,6 @@ class PredictedMel(
 def predict(hparams,
             model_dir, checkpoint_path, output_dir,
             test_source_files, test_target_files):
-
     def predict_input_fn():
         source = tf.data.TFRecordDataset(list(test_source_files))
         target = tf.data.TFRecordDataset(list(test_target_files))
@@ -48,9 +47,9 @@ def predict(hparams,
     estimator = tacotron_model_factory(hparams, model_dir, None)
 
     predictions = map(
-        lambda p: PredictedMel(p["id"], p["key"], p["mel"], p["mel"].shape[1], p["mel"].shape[0], p["ground_truth_mel"],
-                               p["alignment"], p.get("alignment2"), p.get("alignment3"), p.get("alignment4"),
-                               p.get("alignment5"), p.get("alignment6"),
+        lambda p: PredictedMel(p["id"], p["key"], p["mel"], p.get("mel_postnet"), p["mel"].shape[1], p["mel"].shape[0],
+                               p["ground_truth_mel"], p["alignment"], p.get("alignment2"), p.get("alignment3"),
+                               p.get("alignment4"), p.get("alignment5"), p.get("alignment6"),
                                p["source"], p["text"], p.get("accent_type")),
         estimator.predict(predict_input_fn, checkpoint_path=checkpoint_path))
 
@@ -58,7 +57,7 @@ def predict(hparams,
         key = v.key.decode('utf-8')
         mel_filename = f"{key}.{hparams.predicted_mel_extension}"
         mel_filepath = os.path.join(output_dir, mel_filename)
-        mel = v.predicted_mel
+        mel = v.predicted_mel_postnet if hparams.use_postnet_v2 else v.predicted_mel
         assert mel.shape[1] == hparams.num_mels
         mel.tofile(mel_filepath, format='<f4')
         text = v.text.decode("utf-8")
@@ -67,11 +66,11 @@ def predict(hparams,
         alignments = list(filter(lambda x: x is not None,
                                  [v.alignment, v.alignment2, v.alignment3, v.alignment4, v.alignment5, v.alignment6]))
 
-        plot_predictions(alignments, v.ground_truth_mel, v.predicted_mel,
+        plot_predictions(alignments, v.ground_truth_mel, v.predicted_mel, v.predicted_mel_postnet,
                          text, v.key, plot_filepath)
         prediction_filename = f"{key}.tfrecord"
         prediction_filepath = os.path.join(output_dir, prediction_filename)
-        write_prediction_result(v.id, key, alignments, v.predicted_mel, v.ground_truth_mel, text, v.source,
+        write_prediction_result(v.id, key, alignments, mel, v.ground_truth_mel, text, v.source,
                                 v.accent_type, prediction_filepath)
 
 
