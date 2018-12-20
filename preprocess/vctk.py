@@ -9,7 +9,7 @@ import os
 from collections import namedtuple
 import tensorflow as tf
 import numpy as np
-from pyspark import RDD
+from pyspark import RDD, StorageLevel
 from utils.tfrecord import write_tfrecord, int64_feature, bytes_feature
 from utils.audio import Audio
 from preprocess.cleaners import basic_cleaners
@@ -116,7 +116,7 @@ class VCTK:
         return rdd.map(self._process_txt)
 
     def process_targets(self, rdd: RDD):
-        return TargetRDD(rdd.map(self._process_wav))
+        return TargetRDD(rdd.map(self._process_wav).persist(StorageLevel.MEMORY_AND_DISK))
 
     def _load_speaker_info(self):
         with open(os.path.join(self.in_dir, self.speaker_info_filename), mode='r', encoding='utf8') as f:
