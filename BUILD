@@ -97,3 +97,15 @@ py_binary(
         ":preprocess",
     ],
 )
+
+py_binary(
+    name = "preprocess_ljspeech_wavenet",
+    srcs = [
+        "preprocess_ljspeech_wavenet.py",
+    ],
+    srcs_version = "PY3ONLY",
+    default_python_version = "PY3",
+    deps = [
+        ":preprocess",
+    ],
+)

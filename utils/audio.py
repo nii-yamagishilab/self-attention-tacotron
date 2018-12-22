@@ -17,12 +17,15 @@
 
 import librosa
 import numpy as np
+import scipy
 
 
 class Audio:
     def __init__(self, hparams):
         self.hparams = hparams
         self._mel_basis = self._build_mel_basis()
+        self.average_mel_level_db = np.array(hparams.average_mel_level_db, dtype=np.float32)
+        self.stddev_mel_level_db = np.array(hparams.stddev_mel_level_db, dtype=np.float32)
 
     def _build_mel_basis(self):
         n_fft = (self.hparams.num_freq - 1) * 2
@@ -30,6 +33,9 @@ class Audio:
 
     def load_wav(self, path):
         return librosa.core.load(path, sr=self.hparams.sample_rate)[0]
+
+    def save_wav(self, wav, path):
+        scipy.io.wavfile.write(path, self.hparams.sample_rate, wav)
 
     def trim(self, wav):
         unused_trimed, index = librosa.effects.trim(wav, top_db=self.hparams.trim_top_db,
@@ -46,6 +52,9 @@ class Audio:
         D = self._stft(y)
         S = self._amp_to_db(self._linear_to_mel(np.abs(D))) - self.hparams.ref_level_db
         return S
+
+    def normalize_mel(self, S):
+        return (S - self.average_mel_level_db) / self.stddev_mel_level_db
 
     def _stft(self, y):
         n_fft, hop_length, win_length = self._stft_parameters()
