@@ -67,7 +67,7 @@ bazel run preprocess_ljspeech -- --target-only --hparam-json-file=self-attention
 
 Training script conducts training and validation. 
 Validation starts at a certain steps passed. You can control the steps to start validation by setting `save_checkpoints_steps`.
-We do not support tensorflow before version 1.11, because behavior of training and validation is different.
+We do not support tensorflow below version 1.11, because behavior of training and validation is different.
 
 `examples` contains configurations for two models: *Self-attention Tacotron* and *baseline Tacotron*.
 You can find the configuration files for each model at `self-attention-tacotron.json` and `tacotron.json`.
@@ -88,14 +88,15 @@ Since alignment of ground truth and predicted spectrogram does not match normall
 
 ## Prediction
 
-You can predict spectrogram with a trained model by the following command, as an example for VCTK dataset.
+You can predict spectrogram with a trained model by the following command, as an example for LJSpeech dataset.
 
 ```bash
-bazel run predict_mel -- --source-data-root=/path/to/source/output/dir --target-data-root=/path/to/target/output/dir --checkpoint-dir=/path/to/save/checkpoints --output-dir=/path/to/output/results --selected-list-dir=self-attention-tacotron/examples/vctk --hparam-json-file=self-attention-tacotron/examples/vctk/self-attention-tacotron.json
+bazel run predict_mel -- --source-data-root=/path/to/source/output/dir --target-data-root=/path/to/target/output/dir --checkpoint-dir=/path/to/save/checkpoints --output-dir=/path/to/output/results --selected-list-dir=self-attention-tacotron/examples/vctk --hparam-json-file=self-attention-tacotron/examples/ljspeech/self-attention-tacotron.json
 ```
 
-An output file format that is compatible with @TonyWangX 's [WaveNet](https://github.com/nii-yamagishilab/project-CURRENNT-public) will be supported in the future.
-
+There are files with `.mfbsp` extension among generated files.
+These files are compatible with @TonyWangX 's [WaveNet](https://github.com/nii-yamagishilab/project-CURRENNT-public).
+You can find an instruction for waveform inversion with the WaveNet [here](./WaveNet.md).
 
 ### Force alignment mode
 
@@ -105,7 +106,7 @@ You can use force alignment mode by specifying `use_forced_alignment_mode=True` 
 The following example enables force alignment mode by replacing *hparams* with `--hparams=use_forced_alignment_mode=True`.
 
 ```bash
-bazel run predict_mel -- --source-data-root=/path/to/source/output/dir --target-data-root=/path/to/target/output/dir --checkpoint-dir=/path/to/save/checkpoints --output-dir=/path/to/output/results --selected-list-dir=self-attention-tacotron/examples/vctk --hparams=use_forced_alignment_mode=True --hparam-json-file=self-attention-tacotron/examples/vctk/self-attention-tacotron.json
+bazel run predict_mel -- --source-data-root=/path/to/source/output/dir --target-data-root=/path/to/target/output/dir --checkpoint-dir=/path/to/save/checkpoints --output-dir=/path/to/output/results --selected-list-dir=self-attention-tacotron/examples/vctk --hparams=use_forced_alignment_mode=True --hparam-json-file=self-attention-tacotron/examples/ljspeech/self-attention-tacotron.json
 ```
 
 
