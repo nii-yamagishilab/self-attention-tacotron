@@ -38,6 +38,7 @@ py_library(
     deps = [
         "@tacotron2//:tacotron2",
     ],
+    visibility = ["//visibility:public"],
 )
 
 py_library(
@@ -89,6 +90,18 @@ py_binary(
     name = "preprocess_ljspeech",
     srcs = [
         "preprocess_ljspeech.py",
+    ],
+    srcs_version = "PY3ONLY",
+    default_python_version = "PY3",
+    deps = [
+        ":preprocess",
+    ],
+)
+
+py_binary(
+    name = "preprocess_ljspeech_wavenet",
+    srcs = [
+        "preprocess_ljspeech_wavenet.py",
     ],
     srcs_version = "PY3ONLY",
     default_python_version = "PY3",

@@ -5,7 +5,7 @@
 # ==============================================================================
 """ Preprocess for LJSpeech dataset. """
 
-from pyspark import SparkContext, RDD
+from pyspark import SparkContext, RDD, StorageLevel
 import tensorflow as tf
 import numpy as np
 import os
@@ -92,7 +92,7 @@ class LJSpeech:
             self._extract_all_text_and_path())
 
     def process_targets(self, rdd: RDD):
-        return TargetRDD(rdd.mapValues(self._process_target))
+        return TargetRDD(rdd.mapValues(self._process_target).persist(StorageLevel.MEMORY_AND_DISK))
 
     def process_sources(self, rdd: RDD):
         return rdd.mapValues(self._process_source)

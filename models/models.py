@@ -1,12 +1,13 @@
 import tensorflow as tf
 from tacotron2.tacotron.modules import Embedding
-from tacotron2.tacotron.tacotron_v2 import PostNetV2
+from tacotron2.tacotron.tacotron_v2 import PostNetV2, EncoderV2
 from tacotron2.tacotron.hooks import MetricsSaver
 from modules.module import ZoneoutEncoderV1, ExtendedDecoder, EncoderV1WithAccentType, \
     SelfAttentionCBHGEncoder, DualSourceDecoder, TransformerDecoder, \
     DualSourceTransformerDecoder, SelfAttentionCBHGEncoderWithAccentType, \
     MgcLf0Decoder, MgcLf0DualSourceDecoder, DualSourceMgcLf0TransformerDecoder
 from modules.metrics import MgcLf0MetricsSaver
+from modules.regularizers import l2_regularization_loss
 
 
 class ExtendedTacotronV1Model(tf.estimator.Estimator):
@@ -19,38 +20,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
 
             embedding = Embedding(params.num_symbols, embedding_dim=params.embedding_dim)
 
-            if params.use_accent_type:
-                accent_embedding = Embedding(params.num_accent_type,
-                                             embedding_dim=params.accent_type_embedding_dim,
-                                             index_offset=params.accent_type_offset)
-
-            if params.use_accent_type:
-                encoder = EncoderV1WithAccentType(is_training,
-                                                  cbhg_out_units=params.cbhg_out_units,
-                                                  conv_channels=params.conv_channels,
-                                                  max_filter_width=params.max_filter_width,
-                                                  projection1_out_channels=params.projection1_out_channels,
-                                                  projection2_out_channels=params.projection2_out_channels,
-                                                  num_highway=params.num_highway,
-                                                  prenet_out_units=params.encoder_prenet_out_units_if_accent,
-                                                  accent_type_prenet_out_units=params.accent_type_prenet_out_units,
-                                                  drop_rate=params.encoder_prenet_drop_rate,
-                                                  use_zoneout=params.use_zoneout_at_encoder,
-                                                  zoneout_factor_cell=params.zoneout_factor_cell,
-                                                  zoneout_factor_output=params.zoneout_factor_output)
-            else:
-                encoder = ZoneoutEncoderV1(is_training,
-                                           cbhg_out_units=params.cbhg_out_units,
-                                           conv_channels=params.conv_channels,
-                                           max_filter_width=params.max_filter_width,
-                                           projection1_out_channels=params.projection1_out_channels,
-                                           projection2_out_channels=params.projection2_out_channels,
-                                           num_highway=params.num_highway,
-                                           prenet_out_units=params.encoder_prenet_out_units,
-                                           drop_rate=params.encoder_prenet_drop_rate,
-                                           use_zoneout=params.use_zoneout_at_encoder,
-                                           zoneout_factor_cell=params.zoneout_factor_cell,
-                                           zoneout_factor_output=params.zoneout_factor_output)
+            encoder = encoder_factory(params, is_training)
 
             decoder = decoder_factory(params)
 
@@ -122,9 +92,16 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                                           labels.spec_loss_mask)
                 done_loss = self.binary_loss(stop_token, labels.done, labels.binary_loss_mask)
 
+                blacklist = ["embedding", "bias", "batch_normalization", "output_projection_wrapper/kernel",
+                             "lstm_cell",
+                             "output_and_stop_token_wrapper/dense/", "output_and_stop_token_wrapper/dense_1/"]
+                regularization_loss = l2_regularization_loss(
+                    tf.trainable_variables(), params.l2_regularization_weight,
+                    blacklist) if params.use_l2_regularization else 0
+
                 postnet_v2_mel_loss = self.spec_loss(postnet_v2_mel_output, labels.mel,
                                                      labels.spec_loss_mask) if params.use_postnet_v2 else 0
-                loss = mel_loss + done_loss + postnet_v2_mel_loss
+                loss = mel_loss + done_loss + regularization_loss + postnet_v2_mel_loss
 
             if is_training:
                 lr = self.learning_rate_decay(
@@ -136,7 +113,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
 
                 gradients, variables = zip(*optimizer.compute_gradients(loss))
                 clipped_gradients, _ = tf.clip_by_global_norm(gradients, 1.0)
-                self.add_training_stats(loss, mel_loss, done_loss, lr, postnet_v2_mel_loss)
+                self.add_training_stats(loss, mel_loss, done_loss, lr, postnet_v2_mel_loss, regularization_loss)
                 # Add dependency on UPDATE_OPS; otherwise batchnorm won't work correctly. See:
                 # https://github.com/tensorflow/tensorflow/issues/1122
                 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
@@ -148,7 +125,8 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                                                    features.text,
                                                    params.alignment_save_steps,
                                                    mode, summary_writer,
-                                                   params.save_training_time_metrics)
+                                                   save_training_time_metrics=params.save_training_time_metrics,
+                                                   keep_eval_results_max_epoch=params.keep_eval_results_max_epoch)
                     hooks = [alignment_saver]
                     if params.record_profile:
                         profileHook = tf.train.ProfilerHook(save_steps=params.profile_steps, output_dir=model_dir,
@@ -185,12 +163,13 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                 done_loss_with_teacher = self.binary_loss(stop_token_with_teacher, labels.done, labels.binary_loss_mask)
                 postnet_v2_mel_loss_with_teacher = self.spec_loss(postnet_v2_mel_output_with_teacher, labels.mel,
                                                                   labels.spec_loss_mask) if params.use_postnet_v2 else 0
-                loss_with_teacher = mel_loss_with_teacher + done_loss_with_teacher + postnet_v2_mel_loss_with_teacher
+                loss_with_teacher = mel_loss_with_teacher + done_loss_with_teacher + regularization_loss + postnet_v2_mel_loss_with_teacher
 
                 eval_metric_ops = self.get_validation_metrics(mel_loss, done_loss, postnet_v2_mel_loss,
                                                               loss_with_teacher,
                                                               mel_loss_with_teacher, done_loss_with_teacher,
-                                                              postnet_v2_mel_loss_with_teacher)
+                                                              postnet_v2_mel_loss_with_teacher,
+                                                              regularization_loss)
 
                 summary_writer = tf.summary.FileWriter(model_dir)
                 alignment_saver = MetricsSaver([alignment] + decoder_self_attention_alignment, global_step, mel_output,
@@ -200,7 +179,8 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                                                features.text,
                                                1,
                                                mode, summary_writer,
-                                               params.save_training_time_metrics)
+                                               save_training_time_metrics=params.save_training_time_metrics,
+                                               keep_eval_results_max_epoch=params.keep_eval_results_max_epoch)
                 return tf.estimator.EstimatorSpec(mode, loss=loss,
                                                   evaluation_hooks=[alignment_saver],
                                                   eval_metric_ops=eval_metric_ops)
@@ -211,6 +191,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                     "id": features.id,
                     "key": features.key,
                     "mel": mel_output,
+                    "mel_postnet": postnet_v2_mel_output if params.use_postnet_v2 else None,
                     "ground_truth_mel": features.mel,
                     "alignment": alignment,
                     "alignment2": decoder_self_attention_alignment[0] if num_self_alignments >= 1 else None,
@@ -250,7 +231,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
         return init_rate * warmup_steps ** 0.5 * tf.minimum(step * warmup_steps ** -1.5, step ** -0.5)
 
     @staticmethod
-    def add_training_stats(loss, mel_loss, done_loss, learning_rate, postnet_v2_mel_loss):
+    def add_training_stats(loss, mel_loss, done_loss, learning_rate, postnet_v2_mel_loss, l2_regularization_loss):
         if loss is not None:
             tf.summary.scalar("loss_with_teacher", loss)
         if mel_loss is not None:
@@ -262,12 +243,14 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
         if postnet_v2_mel_loss is not None:
             tf.summary.scalar("postnet_v2_mel_loss", postnet_v2_mel_loss)
             tf.summary.scalar("postnet_v2_mel_loss_with_teacher", postnet_v2_mel_loss)
+        if l2_regularization_loss is not None:
+            tf.summary.scalar("l2_regularization_loss", l2_regularization_loss)
         tf.summary.scalar("learning_rate", learning_rate)
         return tf.summary.merge_all()
 
     @staticmethod
     def get_validation_metrics(mel_loss, done_loss, postnet_v2_mel_loss, loss_with_teacher, mel_loss_with_teacher,
-                               done_loss_with_teacher, postnet_v2_mel_loss_with_teacher):
+                               done_loss_with_teacher, postnet_v2_mel_loss_with_teacher, l2_regularization_loss):
         metrics = {}
         if mel_loss is not None:
             metrics["mel_loss"] = tf.metrics.mean(mel_loss)
@@ -283,6 +266,8 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
             metrics["done_loss_with_teacher"] = tf.metrics.mean(done_loss_with_teacher)
         if postnet_v2_mel_loss_with_teacher is not None:
             metrics["postnet_v2_mel_loss_with_teacher"] = tf.metrics.mean(postnet_v2_mel_loss_with_teacher)
+        if l2_regularization_loss is not None:
+            metrics["l2_regularization_loss"] = tf.metrics.mean(l2_regularization_loss)
         return metrics
 
 
@@ -329,6 +314,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                                             is_validation=is_validation or params.use_forced_alignment_mode,
                                                             teacher_forcing=params.use_forced_alignment_mode,
                                                             memory_sequence_length=features.source_length,
+                                                            memory2_sequence_length=features.source_length,
                                                             target_sequence_length=labels.target_length if is_training else None,
                                                             target=target)
 
@@ -355,6 +341,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                                                 is_validation=True,
                                                                 teacher_forcing=False,
                                                                 memory_sequence_length=features.source_length,
+                                                                memory2_sequence_length=features.source_length,
                                                                 target_sequence_length=labels.target_length if is_training else None,
                                                                 target=target,
                                                                 teacher_alignments=(
@@ -389,9 +376,17 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                           labels.spec_loss_mask)
                 done_loss = self.binary_loss(stop_token, labels.done, labels.binary_loss_mask)
 
+                blacklist = ["embedding", "bias", "batch_normalization", "output_projection_wrapper/kernel",
+                             "lstm_cell",
+                             "output_and_stop_token_wrapper/dense/", "output_and_stop_token_wrapper/dense_1/",
+                             "stop_token_projection/kernel"]
+                regularization_loss = l2_regularization_loss(
+                    tf.trainable_variables(), params.l2_regularization_weight,
+                    blacklist) if params.use_l2_regularization else 0
+
                 postnet_v2_mel_loss = self.spec_loss(postnet_v2_mel_output, labels.mel,
                                                      labels.spec_loss_mask) if params.use_postnet_v2 else 0
-                loss = mel_loss + done_loss + postnet_v2_mel_loss
+                loss = mel_loss + done_loss + regularization_loss + postnet_v2_mel_loss
 
             if is_training:
                 lr = self.learning_rate_decay(
@@ -403,7 +398,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
 
                 gradients, variables = zip(*optimizer.compute_gradients(loss))
                 clipped_gradients, _ = tf.clip_by_global_norm(gradients, 1.0)
-                self.add_training_stats(loss, mel_loss, done_loss, lr, postnet_v2_mel_loss)
+                self.add_training_stats(loss, mel_loss, done_loss, lr, postnet_v2_mel_loss, regularization_loss)
                 # Add dependency on UPDATE_OPS; otherwise batchnorm won't work correctly. See:
                 # https://github.com/tensorflow/tensorflow/issues/1122
                 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
@@ -415,7 +410,9 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                                    features.id,
                                                    features.text,
                                                    params.alignment_save_steps,
-                                                   mode, summary_writer)
+                                                   mode, summary_writer,
+                                                   save_training_time_metrics=params.save_training_time_metrics,
+                                                   keep_eval_results_max_epoch=params.keep_eval_results_max_epoch)
                     hooks = [alignment_saver]
                     if params.record_profile:
                         profileHook = tf.train.ProfilerHook(save_steps=params.profile_steps, output_dir=model_dir,
@@ -434,6 +431,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     is_training=is_training,
                     is_validation=is_validation,
                     memory_sequence_length=features.source_length,
+                    memory2_sequence_length=features.source_length,
                     target_sequence_length=labels.target_length,
                     target=target,
                     teacher_forcing=True)
@@ -446,12 +444,13 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 done_loss_with_teacher = self.binary_loss(stop_token_with_teacher, labels.done, labels.binary_loss_mask)
                 postnet_v2_mel_loss_with_teacher = self.spec_loss(postnet_v2_mel_output_with_teacher, labels.mel,
                                                                   labels.spec_loss_mask) if params.use_postnet_v2 else 0
-                loss_with_teacher = mel_loss_with_teacher + done_loss_with_teacher + postnet_v2_mel_loss_with_teacher
+                loss_with_teacher = mel_loss_with_teacher + done_loss_with_teacher + regularization_loss + postnet_v2_mel_loss_with_teacher
 
                 eval_metric_ops = self.get_validation_metrics(mel_loss, done_loss, postnet_v2_mel_loss,
                                                               loss_with_teacher,
                                                               mel_loss_with_teacher, done_loss_with_teacher,
-                                                              postnet_v2_mel_loss_with_teacher)
+                                                              postnet_v2_mel_loss_with_teacher,
+                                                              regularization_loss)
 
                 summary_writer = tf.summary.FileWriter(model_dir)
                 alignment_saver = MetricsSaver(
@@ -461,7 +460,9 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     features.id,
                     features.text,
                     1,
-                    mode, summary_writer)
+                    mode, summary_writer,
+                    save_training_time_metrics=params.save_training_time_metrics,
+                    keep_eval_results_max_epoch=params.keep_eval_results_max_epoch)
                 return tf.estimator.EstimatorSpec(mode, loss=loss,
                                                   evaluation_hooks=[alignment_saver],
                                                   eval_metric_ops=eval_metric_ops)
@@ -473,6 +474,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     "id": features.id,
                     "key": features.key,
                     "mel": mel_output,
+                    "mel_postnet": postnet_v2_mel_output if params.use_postnet_v2 else None,
                     "ground_truth_mel": features.mel,
                     "alignment": alignment1,
                     "alignment2": alignment2,
@@ -515,7 +517,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
         return init_rate * warmup_steps ** 0.5 * tf.minimum(step * warmup_steps ** -1.5, step ** -0.5)
 
     @staticmethod
-    def add_training_stats(loss, mel_loss, done_loss, learning_rate, postnet_v2_mel_loss):
+    def add_training_stats(loss, mel_loss, done_loss, learning_rate, postnet_v2_mel_loss, l2_regularization_loss):
         if loss is not None:
             tf.summary.scalar("loss_with_teacher", loss)
         if mel_loss is not None:
@@ -527,12 +529,14 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
         if postnet_v2_mel_loss is not None:
             tf.summary.scalar("postnet_v2_mel_loss", postnet_v2_mel_loss)
             tf.summary.scalar("postnet_v2_mel_loss_with_teacher", postnet_v2_mel_loss)
+        if l2_regularization_loss is not None:
+            tf.summary.scalar("l2_regularization_loss", l2_regularization_loss)
         tf.summary.scalar("learning_rate", learning_rate)
         return tf.summary.merge_all()
 
     @staticmethod
     def get_validation_metrics(mel_loss, done_loss, postnet_v2_mel_loss, loss_with_teacher, mel_loss_with_teacher,
-                               done_loss_with_teacher, postnet_v2_mel_loss_with_teacher):
+                               done_loss_with_teacher, postnet_v2_mel_loss_with_teacher, l2_regularization_loss):
         metrics = {}
         if mel_loss is not None:
             metrics["mel_loss"] = tf.metrics.mean(mel_loss)
@@ -548,6 +552,8 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
             metrics["done_loss_with_teacher"] = tf.metrics.mean(done_loss_with_teacher)
         if postnet_v2_mel_loss_with_teacher is not None:
             metrics["postnet_v2_mel_loss_with_teacher"] = tf.metrics.mean(postnet_v2_mel_loss_with_teacher)
+        if l2_regularization_loss is not None:
+            metrics["l2_regularization_loss"] = tf.metrics.mean(l2_regularization_loss)
         return metrics
 
 
@@ -596,6 +602,7 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                 is_validation=is_validation or params.use_forced_alignment_mode,
                 teacher_forcing=params.use_forced_alignment_mode,
                 memory_sequence_length=features.source_length,
+                memory2_sequence_length=features.source_length,
                 target=target)
 
             # arrange to (B, T_memory, T_query)
@@ -622,6 +629,7 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                     is_validation=True,
                     teacher_forcing=False,
                     memory_sequence_length=features.source_length,
+                    memory2_sequence_length=features.source_length,
                     target_sequence_length=labels.target_length if is_training else None,
                     target=target,
                     teacher_alignments=(
@@ -707,6 +715,7 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                     is_training=is_training,
                     is_validation=is_validation,
                     memory_sequence_length=features.source_length,
+                    memory2_sequence_length=features.source_length,
                     target=target,
                     teacher_forcing=True)
 
@@ -748,6 +757,7 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                     "id": features.id,
                     "key": features.key,
                     "mgc": mgc_output,
+                    "mgc_postnet": postnet_v2_mgc_output if params.use_postnet_v2 else None,
                     "lf0": tf.nn.softmax(lf0_output),
                     "ground_truth_mgc": features.mgc,
                     "ground_truth_lf0": features.lf0,
@@ -1026,6 +1036,7 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
                     "id": features.id,
                     "key": features.key,
                     "mgc": mgc_output,
+                    "mgc_postnet": postnet_v2_mgc_output if params.use_postnet_v2 else None,
                     "lf0": tf.nn.softmax(lf0_output),
                     "ground_truth_mgc": features.mgc,
                     "ground_truth_lf0": features.lf0,
@@ -1170,6 +1181,14 @@ def encoder_factory(params, is_training):
                                    use_zoneout=params.use_zoneout_at_encoder,
                                    zoneout_factor_cell=params.zoneout_factor_cell,
                                    zoneout_factor_output=params.zoneout_factor_output)
+    elif params.encoder == "EncoderV2":
+        encoder = EncoderV2(num_conv_layers=params.encoder_v2_num_conv_layers,
+                            kernel_size=params.encoder_v2_kernel_size,
+                            out_units=params.encoder_v2_out_units,
+                            drop_rate=params.encoder_v2_drop_rate,
+                            zoneout_factor_cell=params.zoneout_factor_cell,
+                            zoneout_factor_output=params.zoneout_factor_output,
+                            is_training=is_training)
     else:
         raise ValueError(f"Unknown encoder: {params.encoder}")
     return encoder

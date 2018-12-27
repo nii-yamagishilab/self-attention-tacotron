@@ -71,6 +71,12 @@ hparams = tf.contrib.training.HParams(
     num_highway=4,
     encoder_prenet_out_units=(256, 128),
 
+    ### Encoder V2
+    encoder_v2_num_conv_layers=3,
+    encoder_v2_kernel_size=5,
+    encoder_v2_out_units=512,
+    encoder_v2_drop_rate=0.5,
+
     ### Self Attention
     self_attention_out_units=32,
     self_attention_num_heads=2,
@@ -140,13 +146,15 @@ hparams = tf.contrib.training.HParams(
     initial_learning_rate=0.002,
     decay_learning_rate=True,
     learning_rate_step_factor=1,
+    use_l2_regularization=False,
+    l2_regularization_weight=1e-7,
     save_summary_steps=100,
     save_checkpoints_steps=500,
     keep_checkpoint_max=200,
     keep_checkpoint_every_n_hours=1,  # deprecated
     log_step_count_steps=1,
-    alignment_save_steps=1000,
-    save_training_time_metrics=True,
+    alignment_save_steps=10000,
+    save_training_time_metrics=False,
     approx_min_target_length=100,
     suffle_buffer_size=64,
     batch_bucket_width=50,
@@ -166,11 +174,13 @@ hparams = tf.contrib.training.HParams(
     # Eval:
     max_iters=500,
     num_evaluation_steps=64,
+    keep_eval_results_max_epoch=10,
     eval_start_delay_secs=120,
     eval_throttle_secs=600,
 
     # Predict
     use_forced_alignment_mode=False,
+    predicted_mel_extension="mfbsp",
 
     # Extention
     use_zoneout_at_encoder=False,

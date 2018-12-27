@@ -10,10 +10,12 @@ import os
 from tacotron2.util.metrics import plot_alignment
 
 
-def plot_predictions(alignments, mel, mel_predicted, text, key, filename):
+def plot_predictions(alignments, mel, mel_predicted, mel_predicted_postnet, text, key, filename):
     from matplotlib import pylab as plt
     num_alignment = len(alignments)
     num_rows = num_alignment + 3
+    if mel_predicted_postnet is not None:
+        num_rows += 1
     fig = plt.figure(figsize=(14, num_rows * 3))
 
     for i, alignment in enumerate(alignments):
@@ -39,6 +41,12 @@ def plot_predictions(alignments, mel, mel_predicted, text, key, filename):
     im = ax.imshow(mel_predicted.T,
                    origin="lower bottom", aspect="auto", cmap="magma")
     fig.colorbar(im, ax=ax)
+
+    if mel_predicted_postnet is not None:
+        ax = fig.add_subplot(num_rows, 1, num_alignment + 3, sharex=ax)
+        im = ax.imshow(mel_predicted_postnet.T,
+                       origin="lower bottom", aspect="auto", cmap="magma")
+        fig.colorbar(im, ax=ax)
 
     fig.suptitle(f"record ID: {key}\ninput text: {str(text)}")
     fig.savefig(filename, format='png')

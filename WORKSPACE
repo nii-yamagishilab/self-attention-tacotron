@@ -7,5 +7,5 @@
 git_repository(
     name = "tacotron2",
     remote = "git@github.com:nii-yamagishilab/tacotron2.git",
-    commit = "4936699e3411b4f0fa16b737a7ee900d1d793745",
+    commit = "236169296ca2b5d58f2fa5876867d737769901b4",
 )
