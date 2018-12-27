@@ -24,14 +24,14 @@ There are a few important settings you have to configure.
 - Configure training data directory
 
 Tacotron uses larger frame shift, 12.5ms. In this case upsampling rate is 16000Hz / 1000 * 12.5ms  = 200.
-You can configure it [here](https://github.com/nii-yamagishilab/project-CURRENNT-scripts/blob/7e775e0051163d578feb2697829b45c3e9a3fc34/waveform-modeling/project-NSF/config.py#L71).
+You can configure it [here](https://github.com/nii-yamagishilab/project-CURRENNT-scripts/blob/7e775e0051163d578feb2697829b45c3e9a3fc34/waveform-modeling/project-WaveNet/config.py#L71).
 
 The number of utterances for training is 1000 by default. It is too small so set an appropriate value for the dataset you use.
-You can configure it [here](https://github.com/nii-yamagishilab/project-CURRENNT-scripts/blob/7e775e0051163d578feb2697829b45c3e9a3fc34/waveform-modeling/project-NSF/config.py#L85).
+You can configure it [here](https://github.com/nii-yamagishilab/project-CURRENNT-scripts/blob/7e775e0051163d578feb2697829b45c3e9a3fc34/waveform-modeling/project-WaveNet/config.py#L85).
 
 
 By default training data location is [project-CURRENNT-scripts/waveform-modeling/DATA/](https://github.com/nii-yamagishilab/project-CURRENNT-scripts/tree/master/waveform-modeling/DATA).
-You can configure the location [here](https://github.com/nii-yamagishilab/project-CURRENNT-scripts/blob/7e775e0051163d578feb2697829b45c3e9a3fc34/waveform-modeling/project-NSF/config.py#L49).
+You can configure the location [here](https://github.com/nii-yamagishilab/project-CURRENNT-scripts/blob/7e775e0051163d578feb2697829b45c3e9a3fc34/waveform-modeling/project-WaveNet/config.py#L50).
 There are two subdirectories, `mfbsp` is for mel-spectrogram, and `wav32k` is for wav files.
 
 

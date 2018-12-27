@@ -121,7 +121,7 @@ bazel test //:all --force_python=py3
 
 - [ ] Japanese example with accentual type labels
 - [ ] Vocoder parameter examples
-- [ ] WaveNet instruction
+- [x] WaveNet instruction
 
 
 ## Licence
