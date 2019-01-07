@@ -523,11 +523,11 @@ class ExtendedDecoder(tf.layers.Layer):
     def build(self, _):
         self.built = True
 
-    def call(self, source, attention=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, source, attention_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False, memory_sequence_length=None, target_sequence_length=None,
              target=None, teacher_alignments=None):
         assert is_training is not None
-        assert attention is not None
+        assert attention_fn is not None
 
         if speaker_embed is not None:
             prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
@@ -537,16 +537,7 @@ class ExtendedDecoder(tf.layers.Layer):
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source)[0]
-        attention_mechanism = attention_mechanism_factory(AttentionOptions(attention,
-                                                                           self.attention_out_units,
-                                                                           source,
-                                                                           memory_sequence_length,
-                                                                           self.attention_kernel,
-                                                                           self.attention_filters,
-                                                                           self.smoothing,
-                                                                           self.cumulative_weights,
-                                                                           self.use_transition_agent,
-                                                                           teacher_alignments))
+        attention_mechanism = attention_fn(source, memory_sequence_length, teacher_alignments)
         attention_cell = AttentionRNN(ZoneoutLSTMCell(self.attention_out_units,
                                                       is_training,
                                                       self.zoneout_factor_cell,
@@ -894,11 +885,11 @@ class TransformerDecoder(tf.layers.Layer):
     def build(self, _):
         self.built = True
 
-    def call(self, source, attention=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, source, attention_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False, memory_sequence_length=None, target_sequence_length=None,
              target=None, teacher_alignments=None):
         assert is_training is not None
-        assert attention is not None
+        assert attention_fn is not None
 
         if speaker_embed is not None:
             prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
@@ -908,16 +899,7 @@ class TransformerDecoder(tf.layers.Layer):
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source)[0]
-        attention_mechanism = attention_mechanism_factory(AttentionOptions(attention,
-                                                                           self.attention_out_units,
-                                                                           source,
-                                                                           memory_sequence_length,
-                                                                           self.attention_kernel,
-                                                                           self.attention_filters,
-                                                                           self.smoothing,
-                                                                           self.cumulative_weights,
-                                                                           self.use_transition_agent,
-                                                                           teacher_alignments))
+        attention_mechanism = attention_fn(source, memory_sequence_length, teacher_alignments)
         attention_cell = AttentionRNN(ZoneoutLSTMCell(self.attention_out_units,
                                                       is_training,
                                                       self.zoneout_factor_cell,
@@ -1032,14 +1014,14 @@ class DualSourceDecoder(tf.layers.Layer):
     def build(self, _):
         self.built = True
 
-    def call(self, sources, attention1=None, attention2=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False,
              memory_sequence_length=None, memory2_sequence_length=None,
-             target=None, teacher_alignments=None,
+             target=None, teacher_alignments=(None, None),
              target_sequence_length=None):  # target_sequence_length is not used except TransformerDecoder
         assert is_training is not None
-        assert attention1 is not None
-        assert attention2 is not None
+        assert attention1_fn is not None
+        assert attention2_fn is not None
 
         source1, source2 = sources
 
@@ -1051,26 +1033,8 @@ class DualSourceDecoder(tf.layers.Layer):
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
-        attention_mechanism1 = attention_mechanism_factory(AttentionOptions(attention1,
-                                                                            self.attention1_out_units,
-                                                                            source1,
-                                                                            memory_sequence_length,
-                                                                            self.attention_kernel,
-                                                                            self.attention_filters,
-                                                                            self.smoothing,
-                                                                            self.cumulative_weights,
-                                                                            self.use_transition_agent,
-                                                                            teacher_alignments))
-        attention_mechanism2 = attention_mechanism_factory(AttentionOptions(attention2,
-                                                                            self.attention2_out_units,
-                                                                            source2,
-                                                                            memory2_sequence_length,
-                                                                            self.attention_kernel,
-                                                                            self.attention_filters,
-                                                                            self.smoothing,
-                                                                            self.cumulative_weights,
-                                                                            self.use_transition_agent,
-                                                                            teacher_alignments))
+        attention_mechanism1 = attention1_fn(source1, memory_sequence_length, teacher_alignments[0])
+        attention_mechanism2 = attention2_fn(source2, memory2_sequence_length, teacher_alignments[1])
         attention_cell = DualSourceAttentionRNN(ZoneoutLSTMCell(self.attention_rnn_out_units,
                                                                 is_training,
                                                                 self.zoneout_factor_cell,
@@ -1221,12 +1185,12 @@ class MgcLf0Decoder(tf.layers.Layer):
     def build(self, _):
         self.built = True
 
-    def call(self, source, attention=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, source, attention_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False,
              memory_sequence_length=None,
              target=None, target_sequence_length=None, teacher_alignments=None):
         assert is_training is not None
-        assert attention is not None
+        assert attention_fn is not None
 
         if speaker_embed is not None:
             mgc_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
@@ -1240,16 +1204,7 @@ class MgcLf0Decoder(tf.layers.Layer):
                                  for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source)[0]
-        attention_mechanism = attention_mechanism_factory(AttentionOptions(attention,
-                                                                           self.attention_out_units,
-                                                                           source,
-                                                                           memory_sequence_length,
-                                                                           self.attention_kernel,
-                                                                           self.attention_filters,
-                                                                           self.smoothing,
-                                                                           self.cumulative_weights,
-                                                                           self.use_transition_agent,
-                                                                           teacher_alignments))
+        attention_mechanism = attention_fn(source, memory_sequence_length, teacher_alignments)
         attention_cell = MgcLf0AttentionRNN(ZoneoutLSTMCell(self.attention_rnn_out_units,
                                                             is_training,
                                                             self.zoneout_factor_cell,
@@ -1300,7 +1255,9 @@ class MgcLf0Decoder(tf.layers.Layer):
 
 class MgcLf0DualSourceDecoder(tf.layers.Layer):
 
-    def __init__(self, prenet_out_units=(256, 128), drop_rate=0.5,
+    def __init__(self, attention1_fn,
+                 attention2_fn,
+                 prenet_out_units=(256, 128), drop_rate=0.5,
                  attention_rnn_out_units=256,
                  attention1_out_units=224,
                  attention2_out_units=32,
@@ -1320,6 +1277,8 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
                  zoneout_factor_output=0.0,
                  trainable=True, name=None, **kwargs):
         super(MgcLf0DualSourceDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
+        self._attention1_fn = attention1_fn
+        self._attention2_fn = attention2_fn
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
@@ -1344,13 +1303,13 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
     def build(self, _):
         self.built = True
 
-    def call(self, sources, attention1=None, attention2=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False,
-             memory_sequence_length=None,
-             target=None, teacher_alignments=None):
+             memory_sequence_length=None, memory2_sequence_length=None,
+             target=None, teacher_alignments=(None, None)):
         assert is_training is not None
-        assert attention1 is not None
-        assert attention2 is not None
+        assert attention1_fn is not None
+        assert attention2_fn is not None
 
         source1, source2 = sources
 
@@ -1366,26 +1325,8 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
                                  for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
-        attention_mechanism1 = attention_mechanism_factory(AttentionOptions(attention1,
-                                                                            self.attention1_out_units,
-                                                                            source1,
-                                                                            memory_sequence_length,
-                                                                            self.attention_kernel,
-                                                                            self.attention_filters,
-                                                                            self.smoothing,
-                                                                            self.cumulative_weights,
-                                                                            self.use_transition_agent,
-                                                                            teacher_alignments))
-        attention_mechanism2 = attention_mechanism_factory(AttentionOptions(attention2,
-                                                                            self.attention2_out_units,
-                                                                            source2,
-                                                                            memory_sequence_length,
-                                                                            self.attention_kernel,
-                                                                            self.attention_filters,
-                                                                            self.smoothing,
-                                                                            self.cumulative_weights,
-                                                                            self.use_transition_agent,
-                                                                            teacher_alignments))
+        attention_mechanism1 = attention1_fn(source1, memory_sequence_length, teacher_alignments[0])
+        attention_mechanism2 = attention2_fn(source2, memory2_sequence_length, teacher_alignments[1])
         attention_cell = DualSourceMgcLf0AttentionRNN(ZoneoutLSTMCell(self.attention_rnn_out_units,
                                                                       is_training,
                                                                       self.zoneout_factor_cell,
@@ -1491,13 +1432,13 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
     def build(self, _):
         self.built = True
 
-    def call(self, sources, attention1=None, attention2=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False, memory_sequence_length=None, memory2_sequence_length=None,
              target_sequence_length=None,
              target=None, teacher_alignments=(None, None)):
         assert is_training is not None
-        assert attention1 is not None
-        assert attention2 is not None
+        assert attention1_fn is not None
+        assert attention2_fn is not None
 
         source1, source2 = sources
 
@@ -1509,26 +1450,8 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
-        attention_mechanism1 = attention_mechanism_factory(AttentionOptions(attention1,
-                                                                            self.attention1_out_units,
-                                                                            source1,
-                                                                            memory_sequence_length,
-                                                                            self.attention_kernel,
-                                                                            self.attention_filters,
-                                                                            self.smoothing,
-                                                                            self.cumulative_weights,
-                                                                            self.use_transition_agent,
-                                                                            teacher_alignments[0]))
-        attention_mechanism2 = attention_mechanism_factory(AttentionOptions(attention2,
-                                                                            self.attention2_out_units,
-                                                                            source2,
-                                                                            memory2_sequence_length,
-                                                                            self.attention_kernel,
-                                                                            self.attention_filters,
-                                                                            self.smoothing,
-                                                                            self.cumulative_weights,
-                                                                            self.use_transition_agent,
-                                                                            teacher_alignments[1]))
+        attention_mechanism1 = attention1_fn(source1, memory_sequence_length, teacher_alignments[0])
+        attention_mechanism2 = attention2_fn(source2, memory2_sequence_length, teacher_alignments[1])
         attention_cell = DualSourceAttentionRNN(ZoneoutLSTMCell(self.attention_rnn_out_units,
                                                                 is_training,
                                                                 self.zoneout_factor_cell,
@@ -1625,13 +1548,13 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
     def build(self, _):
         self.built = True
 
-    def call(self, sources, attention1=None, attention2=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False,
              memory_sequence_length=None, memory2_sequence_length=None,
              target_sequence_length=None, target=None, teacher_alignments=(None, None)):
         assert is_training is not None
-        assert attention1 is not None
-        assert attention2 is not None
+        assert attention1_fn is not None
+        assert attention2_fn is not None
 
         source1, source2 = sources
 
@@ -1647,26 +1570,8 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
                                  for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
-        attention_mechanism1 = attention_mechanism_factory(AttentionOptions(attention1,
-                                                                            self.attention1_out_units,
-                                                                            source1,
-                                                                            memory_sequence_length,
-                                                                            self.attention_kernel,
-                                                                            self.attention_filters,
-                                                                            self.smoothing,
-                                                                            self.cumulative_weights,
-                                                                            self.use_transition_agent,
-                                                                            teacher_alignments[0]))
-        attention_mechanism2 = attention_mechanism_factory(AttentionOptions(attention2,
-                                                                            self.attention2_out_units,
-                                                                            source2,
-                                                                            memory2_sequence_length,
-                                                                            self.attention_kernel,
-                                                                            self.attention_filters,
-                                                                            self.smoothing,
-                                                                            self.cumulative_weights,
-                                                                            self.use_transition_agent,
-                                                                            teacher_alignments[1]))
+        attention_mechanism1 = attention1_fn(source1, memory_sequence_length, teacher_alignments[0])
+        attention_mechanism2 = attention2_fn(source2, memory2_sequence_length, teacher_alignments[1])
         attention_cell = DualSourceMgcLf0AttentionRNN(ZoneoutLSTMCell(self.attention_rnn_out_units,
                                                                       is_training,
                                                                       self.zoneout_factor_cell,
