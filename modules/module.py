@@ -488,11 +488,6 @@ class ExtendedDecoder(tf.layers.Layer):
     def __init__(self, prenet_out_units=(256, 128), drop_rate=0.5,
                  attention_out_units=256,
                  decoder_version="v1",  # v1 | v2
-                 attention_kernel=31,
-                 attention_filters=32,
-                 smoothing=False,
-                 cumulative_weights=True,
-                 use_transition_agent=False,
                  decoder_out_units=256,
                  num_mels=80,
                  outputs_per_step=2,
@@ -506,11 +501,6 @@ class ExtendedDecoder(tf.layers.Layer):
         self._drop_rate = drop_rate
         self.attention_out_units = attention_out_units
         self.decoder_version = decoder_version
-        self.attention_kernel = attention_kernel
-        self.attention_filters = attention_filters
-        self.smoothing = smoothing
-        self.cumulative_weights = cumulative_weights
-        self.use_transition_agent = use_transition_agent
         self.decoder_out_units = decoder_out_units
         self.num_mels = num_mels
         self.outputs_per_step = outputs_per_step
@@ -838,11 +828,6 @@ class TransformerDecoder(tf.layers.Layer):
     def __init__(self, prenet_out_units=(256, 128), drop_rate=0.5,
                  attention_out_units=256,
                  decoder_version="v1",  # v1 | v2
-                 attention_kernel=31,
-                 attention_filters=32,
-                 smoothing=False,
-                 cumulative_weights=True,
-                 use_transition_agent=False,
                  decoder_out_units=256,
                  num_mels=80,
                  outputs_per_step=2,
@@ -862,11 +847,6 @@ class TransformerDecoder(tf.layers.Layer):
         self._drop_rate = drop_rate
         self.attention_out_units = attention_out_units
         self.decoder_version = decoder_version
-        self.attention_kernel = attention_kernel
-        self.attention_filters = attention_filters
-        self.smoothing = smoothing
-        self.cumulative_weights = cumulative_weights
-        self.use_transition_agent = use_transition_agent
         self.decoder_out_units = decoder_out_units
         self.num_mels = num_mels
         self.outputs_per_step = outputs_per_step
@@ -974,14 +954,7 @@ class DualSourceDecoder(tf.layers.Layer):
 
     def __init__(self, prenet_out_units=(256, 128), drop_rate=0.5,
                  attention_rnn_out_units=256,
-                 attention1_out_units=224,
-                 attention2_out_units=32,
                  decoder_version="v1",  # v1 | v2
-                 attention_kernel=31,
-                 attention_filters=32,
-                 smoothing=False,
-                 cumulative_weights=True,
-                 use_transition_agent=False,
                  decoder_out_units=256,
                  num_mels=80,
                  outputs_per_step=2,
@@ -994,14 +967,7 @@ class DualSourceDecoder(tf.layers.Layer):
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
-        self.attention1_out_units = attention1_out_units
-        self.attention2_out_units = attention2_out_units
         self.decoder_version = decoder_version
-        self.attention_kernel = attention_kernel
-        self.attention_filters = attention_filters
-        self.smoothing = smoothing
-        self.cumulative_weights = cumulative_weights
-        self.use_transition_agent = use_transition_agent
         self.decoder_out_units = decoder_out_units
         self.num_mels = num_mels
         self.outputs_per_step = outputs_per_step
@@ -1145,13 +1111,7 @@ class MgcLf0Decoder(tf.layers.Layer):
 
     def __init__(self, prenet_out_units=(256, 128), drop_rate=0.5,
                  attention_rnn_out_units=256,
-                 attention_out_units=256,
                  decoder_version="v1",  # v1 | v2
-                 attention_kernel=31,
-                 attention_filters=32,
-                 smoothing=False,
-                 cumulative_weights=True,
-                 use_transition_agent=False,
                  decoder_out_units=256,
                  num_mgcs=60,
                  num_lf0s=256,
@@ -1165,13 +1125,7 @@ class MgcLf0Decoder(tf.layers.Layer):
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
-        self.attention_out_units = attention_out_units
         self.decoder_version = decoder_version
-        self.attention_kernel = attention_kernel
-        self.attention_filters = attention_filters
-        self.smoothing = smoothing
-        self.cumulative_weights = cumulative_weights
-        self.use_transition_agent = use_transition_agent
         self.decoder_out_units = decoder_out_units
         self.num_mgcs = num_mgcs
         self.num_lf0s = num_lf0s
@@ -1259,14 +1213,7 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
                  attention2_fn,
                  prenet_out_units=(256, 128), drop_rate=0.5,
                  attention_rnn_out_units=256,
-                 attention1_out_units=224,
-                 attention2_out_units=32,
                  decoder_version="v1",  # v1 | v2
-                 attention_kernel=31,
-                 attention_filters=32,
-                 smoothing=False,
-                 cumulative_weights=True,
-                 use_transition_agent=False,
                  decoder_out_units=256,
                  num_mgcs=60,
                  num_lf0s=256,
@@ -1282,14 +1229,7 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
-        self.attention1_out_units = attention1_out_units
-        self.attention2_out_units = attention2_out_units
         self.decoder_version = decoder_version
-        self.attention_kernel = attention_kernel
-        self.attention_filters = attention_filters
-        self.smoothing = smoothing
-        self.cumulative_weights = cumulative_weights
-        self.use_transition_agent = use_transition_agent
         self.decoder_out_units = decoder_out_units
         self.num_mgcs = num_mgcs
         self.num_lf0s = num_lf0s
@@ -1380,14 +1320,7 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
 
     def __init__(self, prenet_out_units=(256, 128), drop_rate=0.5,
                  attention_rnn_out_units=256,
-                 attention1_out_units=224,
-                 attention2_out_units=32,
                  decoder_version="v1",  # v1 | v2
-                 attention_kernel=31,
-                 attention_filters=32,
-                 smoothing=False,
-                 cumulative_weights=True,
-                 use_transition_agent=False,
                  decoder_out_units=256,
                  num_mels=80,
                  outputs_per_step=2,
@@ -1406,14 +1339,7 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
-        self.attention1_out_units = attention1_out_units
-        self.attention2_out_units = attention2_out_units
         self.decoder_version = decoder_version
-        self.attention_kernel = attention_kernel
-        self.attention_filters = attention_filters
-        self.smoothing = smoothing
-        self.cumulative_weights = cumulative_weights
-        self.use_transition_agent = use_transition_agent
         self.decoder_out_units = decoder_out_units
         self.num_mels = num_mels
         self.outputs_per_step = outputs_per_step
@@ -1494,14 +1420,7 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
 
     def __init__(self, prenet_out_units=(256, 128), drop_rate=0.5,
                  attention_rnn_out_units=256,
-                 attention1_out_units=224,
-                 attention2_out_units=32,
                  decoder_version="v1",  # v1 | v2
-                 attention_kernel=31,
-                 attention_filters=32,
-                 smoothing=False,
-                 cumulative_weights=True,
-                 use_transition_agent=False,
                  decoder_out_units=256,
                  num_mgcs=80,
                  num_lf0s=256,
@@ -1521,14 +1440,7 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
-        self.attention1_out_units = attention1_out_units
-        self.attention2_out_units = attention2_out_units
         self.decoder_version = decoder_version
-        self.attention_kernel = attention_kernel
-        self.attention_filters = attention_filters
-        self.smoothing = smoothing
-        self.cumulative_weights = cumulative_weights
-        self.use_transition_agent = use_transition_agent
         self.decoder_out_units = decoder_out_units
         self.num_mgcs = num_mgcs
         self.num_lf0s = num_lf0s
