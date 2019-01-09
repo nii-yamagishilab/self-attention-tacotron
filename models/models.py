@@ -8,6 +8,8 @@ from modules.module import ZoneoutEncoderV1, ExtendedDecoder, EncoderV1WithAccen
     MgcLf0Decoder, MgcLf0DualSourceDecoder, DualSourceMgcLf0TransformerDecoder
 from modules.metrics import MgcLf0MetricsSaver
 from modules.regularizers import l2_regularization_loss
+from models.attention_factories import attention_factory, dual_source_attention_factory, force_alignment_attention_factory, \
+    force_alignment_dual_source_attention_factory
 
 
 class ExtendedTacotronV1Model(tf.estimator.Estimator):
@@ -40,7 +42,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
             speaker_embedding_output = speaker_embedding(features.speaker_id) if params.use_speaker_embedding else None
 
             mel_output, stop_token, decoder_state = decoder(encoder_output,
-                                                            attention=params.attention,
+                                                            attention_fn=attention_factory(params),
                                                             speaker_embed=speaker_embedding_output,
                                                             is_training=is_training,
                                                             is_validation=is_validation or params.use_forced_alignment_mode,
@@ -61,7 +63,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
 
             if params.use_forced_alignment_mode:
                 mel_output, stop_token, decoder_state = decoder(encoder_output,
-                                                                attention=params.forced_alignment_attention,
+                                                                attention_fn=force_alignment_attention_factory(params),
                                                                 speaker_embed=speaker_embedding_output,
                                                                 is_training=is_training,
                                                                 is_validation=True,
@@ -138,7 +140,7 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
             if is_validation:
                 # validation with teacher forcing
                 mel_output_with_teacher, stop_token_with_teacher, decoder_state_with_teacher = decoder(encoder_output,
-                                                                                                       attention=params.attention,
+                                                                                                       attention_fn=attention_factory(params),
                                                                                                        speaker_embed=speaker_embedding_output,
                                                                                                        is_training=is_training,
                                                                                                        is_validation=is_validation,
@@ -306,9 +308,10 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
 
             speaker_embedding_output = speaker_embedding(features.speaker_id) if params.use_speaker_embedding else None
 
+            attention1_fn, attention2_fn = dual_source_attention_factory(params)
             mel_output, stop_token, decoder_state = decoder((encoder_lstm_output, encoder_self_attention_output),
-                                                            attention1=params.attention,
-                                                            attention2=params.attention2,
+                                                            attention1_fn=attention1_fn,
+                                                            attention2_fn=attention2_fn,
                                                             speaker_embed=speaker_embedding_output,
                                                             is_training=is_training,
                                                             is_validation=is_validation or params.use_forced_alignment_mode,
@@ -333,9 +336,10 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 decoder_self_attention_alignment = []  # ToDo: fill decoder_self_attention_alignment at training time
 
             if params.use_forced_alignment_mode:
+                attention1_fn, attention2_fn = force_alignment_dual_source_attention_factory(params)
                 mel_output, stop_token, decoder_state = decoder((encoder_lstm_output, encoder_self_attention_output),
-                                                                attention1=params.forced_alignment_attention,
-                                                                attention2=params.forced_alignment_attention2,
+                                                                attention1_fn=attention1_fn,
+                                                                attention2_fn=attention2_fn,
                                                                 speaker_embed=speaker_embedding_output,
                                                                 is_training=is_training,
                                                                 is_validation=True,
@@ -423,10 +427,11 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
 
             if is_validation:
                 # validation with teacher forcing
+                attention1_fn, attention2_fn = dual_source_attention_factory(params)
                 mel_output_with_teacher, stop_token_with_teacher, decoder_state_with_teacher = decoder(
                     (encoder_lstm_output, encoder_self_attention_output),
-                    attention1=params.attention,
-                    attention2=params.attention2,
+                    attention1_fn=attention1_fn,
+                    attention2_fn=attention2_fn,
                     speaker_embed=speaker_embedding_output,
                     is_training=is_training,
                     is_validation=is_validation,
@@ -593,10 +598,11 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
 
             speaker_embedding_output = speaker_embedding(features.speaker_id) if params.use_speaker_embedding else None
 
+            attention1_fn, attention2_fn = dual_source_attention_factory(params)
             mgc_output, lf0_output, stop_token, decoder_state = decoder(
                 (encoder_lstm_output, encoder_self_attention_output),
-                attention1=params.attention,
-                attention2=params.attention2,
+                attention1_fn=attention1_fn,
+                attention2_fn=attention2_fn,
                 speaker_embed=speaker_embedding_output,
                 is_training=is_training,
                 is_validation=is_validation or params.use_forced_alignment_mode,
@@ -620,10 +626,11 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                 decoder_self_attention_alignment = []  # ToDo: fill decoder_self_attention_alignment at training time
 
             if params.use_forced_alignment_mode:
+                attention1_fn, attention2_fn = force_alignment_dual_source_attention_factory(params)
                 mgc_output, lf0_output, stop_token, decoder_state = decoder(
                     (encoder_lstm_output, encoder_self_attention_output),
-                    attention1=params.forced_alignment_attention,
-                    attention2=params.forced_alignment_attention2,
+                    attention1_fn=attention1_fn,
+                    attention2_fn=attention2_fn,
                     speaker_embed=speaker_embedding_output,
                     is_training=is_training,
                     is_validation=True,
@@ -707,10 +714,11 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
 
             if is_validation:
                 # validation with teacher forcing
+                attention1_fn, attention2_fn = dual_source_attention_factory(params)
                 mgc_output_with_teacher, lf0_output_with_teacher, stop_token_with_teacher, decoder_state_with_teacher = decoder(
                     (encoder_lstm_output, encoder_self_attention_output),
-                    attention1=params.attention,
-                    attention2=params.attention2,
+                    attention1_fn=attention1_fn,
+                    attention2_fn=attention2_fn,
                     speaker_embed=speaker_embedding_output,
                     is_training=is_training,
                     is_validation=is_validation,
@@ -887,7 +895,7 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
             speaker_embedding_output = speaker_embedding(features.speaker_id) if params.use_speaker_embedding else None
 
             mgc_output, lf0_output, stop_token, decoder_state = decoder(encoder_output,
-                                                                        attention=params.attention,
+                                                                        attention_fn=attention_factory(params),
                                                                         speaker_embed=speaker_embedding_output,
                                                                         is_training=is_training,
                                                                         is_validation=is_validation or params.use_forced_alignment_mode,
@@ -911,7 +919,7 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
             if params.use_forced_alignment_mode:
                 mgc_output, lf0_output, stop_token, decoder_state = decoder(
                     encoder_output,
-                    attention=params.forced_alignment_attention,
+                    attention_fn=force_alignment_attention_factory(params),
                     speaker_embed=speaker_embedding_output,
                     is_training=is_training,
                     is_validation=True,
@@ -990,7 +998,7 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
                 # validation with teacher forcing
                 mgc_output_with_teacher, lf0_output_with_teacher, stop_token_with_teacher, decoder_state_with_teacher = decoder(
                     encoder_output,
-                    attention=params.attention,
+                    attention_fn=attention_factory(params),
                     speaker_embed=speaker_embedding_output,
                     is_training=is_training,
                     is_validation=is_validation or params.use_forced_alignment_mode,
@@ -1200,10 +1208,6 @@ def decoder_factory(params):
                                   drop_rate=params.decoder_prenet_drop_rate,
                                   attention_out_units=params.attention_out_units,
                                   decoder_version=params.decoder_version,
-                                  attention_kernel=params.attention_kernel,
-                                  attention_filters=params.attention_filters,
-                                  cumulative_weights=params.cumulative_weights,
-                                  use_transition_agent=params.use_forward_attention_transition_agent,
                                   decoder_out_units=params.decoder_out_units,
                                   num_mels=params.num_mels,
                                   outputs_per_step=params.outputs_per_step,
@@ -1216,10 +1220,6 @@ def decoder_factory(params):
                                      drop_rate=params.decoder_prenet_drop_rate,
                                      attention_out_units=params.attention_out_units,
                                      decoder_version=params.decoder_version,
-                                     attention_kernel=params.attention_kernel,
-                                     attention_filters=params.attention_filters,
-                                     cumulative_weights=params.cumulative_weights,
-                                     use_transition_agent=params.use_forward_attention_transition_agent,
                                      decoder_out_units=params.decoder_out_units,
                                      num_mels=params.num_mels,
                                      outputs_per_step=params.outputs_per_step,
@@ -1235,13 +1235,7 @@ def decoder_factory(params):
         decoder = DualSourceDecoder(prenet_out_units=params.decoder_prenet_out_units,
                                     drop_rate=params.decoder_prenet_drop_rate,
                                     attention_rnn_out_units=params.attention_out_units,
-                                    attention1_out_units=params.attention1_out_units,
-                                    attention2_out_units=params.attention2_out_units,
                                     decoder_version=params.decoder_version,
-                                    attention_kernel=params.attention_kernel,
-                                    attention_filters=params.attention_filters,
-                                    cumulative_weights=params.cumulative_weights,
-                                    use_transition_agent=params.use_forward_attention_transition_agent,
                                     decoder_out_units=params.decoder_out_units,
                                     num_mels=params.num_mels,
                                     outputs_per_step=params.outputs_per_step,
@@ -1253,13 +1247,7 @@ def decoder_factory(params):
         decoder = DualSourceTransformerDecoder(prenet_out_units=params.decoder_prenet_out_units,
                                                drop_rate=params.decoder_prenet_drop_rate,
                                                attention_rnn_out_units=params.attention_out_units,
-                                               attention1_out_units=params.attention1_out_units,
-                                               attention2_out_units=params.attention2_out_units,
                                                decoder_version=params.decoder_version,
-                                               attention_kernel=params.attention_kernel,
-                                               attention_filters=params.attention_filters,
-                                               cumulative_weights=params.cumulative_weights,
-                                               use_transition_agent=params.use_forward_attention_transition_agent,
                                                decoder_out_units=params.decoder_out_units,
                                                num_mels=params.num_mels,
                                                outputs_per_step=params.outputs_per_step,
@@ -1277,10 +1265,6 @@ def decoder_factory(params):
                                 attention_rnn_out_units=params.attention_out_units,
                                 attention_out_units=params.attention_out_units,
                                 decoder_version=params.decoder_version,
-                                attention_kernel=params.attention_kernel,
-                                attention_filters=params.attention_filters,
-                                cumulative_weights=params.cumulative_weights,
-                                use_transition_agent=params.use_forward_attention_transition_agent,
                                 decoder_out_units=params.decoder_out_units,
                                 num_mgcs=params.num_mgcs,
                                 num_lf0s=params.num_lf0s,
@@ -1293,13 +1277,7 @@ def decoder_factory(params):
         decoder = MgcLf0DualSourceDecoder(prenet_out_units=params.decoder_prenet_out_units,
                                           drop_rate=params.decoder_prenet_drop_rate,
                                           attention_rnn_out_units=params.attention_out_units,
-                                          attention1_out_units=params.attention1_out_units,
-                                          attention2_out_units=params.attention2_out_units,
                                           decoder_version=params.decoder_version,
-                                          attention_kernel=params.attention_kernel,
-                                          attention_filters=params.attention_filters,
-                                          cumulative_weights=params.cumulative_weights,
-                                          use_transition_agent=params.use_forward_attention_transition_agent,
                                           decoder_out_units=params.decoder_out_units,
                                           num_mgcs=params.num_mgcs,
                                           num_lf0s=params.num_lf0s,
@@ -1312,13 +1290,7 @@ def decoder_factory(params):
         decoder = DualSourceMgcLf0TransformerDecoder(prenet_out_units=params.decoder_prenet_out_units,
                                                      drop_rate=params.decoder_prenet_drop_rate,
                                                      attention_rnn_out_units=params.attention_out_units,
-                                                     attention1_out_units=params.attention1_out_units,
-                                                     attention2_out_units=params.attention2_out_units,
                                                      decoder_version=params.decoder_version,
-                                                     attention_kernel=params.attention_kernel,
-                                                     attention_filters=params.attention_filters,
-                                                     cumulative_weights=params.cumulative_weights,
-                                                     use_transition_agent=params.use_forward_attention_transition_agent,
                                                      decoder_out_units=params.decoder_out_units,
                                                      num_mgcs=params.num_mgcs,
                                                      num_lf0s=params.num_lf0s,
