@@ -337,7 +337,7 @@ class SelfAttentionTransformer(tf.layers.Layer):
 
         residual = inputs + transformed
 
-        return residual + transformed, self_attention_alignment
+        return residual, self_attention_alignment
 
 
 class SelfAttentionCBHGEncoder(tf.layers.Layer):
