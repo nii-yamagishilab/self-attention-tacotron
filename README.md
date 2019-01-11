@@ -16,6 +16,9 @@ This project depends on [Tacotron2](https://github.com/nii-yamagishilab/tacotron
 - Python >= 3.6
 - Bazel >= 0.18.0
 
+If you are not familiar with Bazel, you can use a python command directly by setting external dependencies by yourself.
+See [this document](./Bazel.md) for details.
+
 The following python packages should be installed.
 
 For training and prediction
