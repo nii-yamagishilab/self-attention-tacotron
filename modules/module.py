@@ -1209,8 +1209,7 @@ class MgcLf0Decoder(tf.layers.Layer):
 
 class MgcLf0DualSourceDecoder(tf.layers.Layer):
 
-    def __init__(self, attention1_fn,
-                 attention2_fn,
+    def __init__(self,
                  prenet_out_units=(256, 128), drop_rate=0.5,
                  attention_rnn_out_units=256,
                  decoder_version="v1",  # v1 | v2
@@ -1224,8 +1223,6 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
                  zoneout_factor_output=0.0,
                  trainable=True, name=None, **kwargs):
         super(MgcLf0DualSourceDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
-        self._attention1_fn = attention1_fn
-        self._attention2_fn = attention2_fn
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
