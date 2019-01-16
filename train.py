@@ -13,7 +13,6 @@ Options:
     --selected-list-dir=<dir>           Directory contains test.csv, train.csv, and validation.csv
     --hparams=<parmas>                  Ad-hoc replacement of hyper parameters. [default: ].
     --hparam-json-file=<path>           JSON file contains hyper parameters.
-    --checkpoint=<path>                 Restore model from checkpoint path if given.
     --multi-gpus                        Use multiple GPUs
     -h, --help                          Show this help message and exit
 """
