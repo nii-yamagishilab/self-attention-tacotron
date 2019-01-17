@@ -16,6 +16,9 @@ This project depends on [Tacotron2](https://github.com/nii-yamagishilab/tacotron
 - Python >= 3.6
 - Bazel >= 0.18.0
 
+If you are not familiar with Bazel, you can use a python command directly by setting external dependencies by yourself.
+See [this document](./Bazel.md) for details.
+
 The following python packages should be installed.
 
 For training and prediction
@@ -75,7 +78,7 @@ You can find the configuration files for each model at `self-attention-tacotron.
 You can run training by the following command, as an example for Self-attention Tacotron with VCTK dataset.
 
 ```bash
-bazel run train -- --source-data-root=/path/to/source/output/dir --target-data-root=/path/to/target/output/dir --checkpoint-dir=/path/to/save/checkpoints --checkpoint=/path/to/model.ckpt-XXXX --selected-list-dir=self-attention-tacotron/examples/vctk --hparam-json-file=self-attention-tacotron/examples/vctk/self-attention-tacotron.json
+bazel run train -- --source-data-root=/path/to/source/output/dir --target-data-root=/path/to/target/output/dir --checkpoint-dir=/path/to/save/checkpoints --selected-list-dir=self-attention-tacotron/examples/vctk --hparam-json-file=self-attention-tacotron/examples/vctk/self-attention-tacotron.json
 ```
 
 At validation phase, predicted alignments and spectrogram are generated in the checkpoint directory.
