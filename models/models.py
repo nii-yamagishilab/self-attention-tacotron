@@ -1263,7 +1263,6 @@ def decoder_factory(params):
         decoder = MgcLf0Decoder(prenet_out_units=params.decoder_prenet_out_units,
                                 drop_rate=params.decoder_prenet_drop_rate,
                                 attention_rnn_out_units=params.attention_out_units,
-                                attention_out_units=params.attention_out_units,
                                 decoder_version=params.decoder_version,
                                 decoder_out_units=params.decoder_out_units,
                                 num_mgcs=params.num_mgcs,
