@@ -99,6 +99,7 @@ hparams = tf.contrib.training.HParams(
 
     ## Decoder V1
     decoder_prenet_drop_rate=0.5,
+    apply_dropout_on_inference=False,
     decoder_prenet_out_units=(256, 128),
     attention_out_units=256,
     decoder_out_units=256,

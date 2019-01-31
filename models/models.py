@@ -49,7 +49,8 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                                                             teacher_forcing=params.use_forced_alignment_mode,
                                                             memory_sequence_length=features.source_length,
                                                             target_sequence_length=labels.target_length if is_training else None,
-                                                            target=target)
+                                                            target=target,
+                                                            apply_dropout_on_inference=params.apply_dropout_on_inference)
 
             if params.decoder == "TransformerDecoder" and not is_training:
                 decoder_rnn_state = decoder_state.rnn_state.rnn_state[0]
@@ -71,7 +72,8 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                                                                 memory_sequence_length=features.source_length,
                                                                 target_sequence_length=labels.target_length if is_training else None,
                                                                 target=target,
-                                                                teacher_alignments=tf.transpose(alignment, [0, 2, 1]))
+                                                                teacher_alignments=tf.transpose(alignment, [0, 2, 1]),
+                                                                apply_dropout_on_inference=params.apply_dropout_on_inference)
                 if params.decoder == "TransformerDecoder" and not is_training:
                     alignment = tf.transpose(decoder_state.rnn_state.rnn_state[0].alignment_history.stack(), [1, 2, 0])
                 else:
@@ -147,7 +149,8 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                                                                                                        memory_sequence_length=features.source_length,
                                                                                                        target_sequence_length=labels.target_length,
                                                                                                        target=target,
-                                                                                                       teacher_forcing=True)
+                                                                                                       teacher_forcing=True,
+                                                                                                       apply_dropout_on_inference=params.apply_dropout_on_inference)
 
                 if params.decoder == "TransformerDecoder" and not is_training:
                     alignment_with_teacher = tf.transpose(
@@ -319,7 +322,8 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                                             memory_sequence_length=features.source_length,
                                                             memory2_sequence_length=features.source_length,
                                                             target_sequence_length=labels.target_length if is_training else None,
-                                                            target=target)
+                                                            target=target,
+                                                            apply_dropout_on_inference=params.apply_dropout_on_inference)
 
             # arrange to (B, T_memory, T_query)
             self_attention_alignment = [tf.transpose(a, perm=[0, 2, 1]) for a in self_attention_alignment]
@@ -350,7 +354,8 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                                                 target=target,
                                                                 teacher_alignments=(
                                                                     tf.transpose(alignment1, perm=[0, 2, 1]),
-                                                                    tf.transpose(alignment2, perm=[0, 2, 1])))
+                                                                    tf.transpose(alignment2, perm=[0, 2, 1])),
+                                                                apply_dropout_on_inference=params.apply_dropout_on_inference)
                 if params.decoder == "DualSourceTransformerDecoder" and not is_training:
                     alignment1 = tf.transpose(decoder_state.rnn_state.rnn_state[0].alignment_history[0].stack(),
                                               [1, 2, 0])
@@ -439,7 +444,8 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     memory2_sequence_length=features.source_length,
                     target_sequence_length=labels.target_length,
                     target=target,
-                    teacher_forcing=True)
+                    teacher_forcing=True,
+                    apply_dropout_on_inference=params.apply_dropout_on_inference)
 
                 if params.use_postnet_v2:
                     postnet_v2_mel_output_with_teacher = postnet(mel_output_with_teacher)
@@ -609,7 +615,8 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                 teacher_forcing=params.use_forced_alignment_mode,
                 memory_sequence_length=features.source_length,
                 memory2_sequence_length=features.source_length,
-                target=target)
+                target=target,
+                apply_dropout_on_inference=params.apply_dropout_on_inference)
 
             # arrange to (B, T_memory, T_query)
             self_attention_alignment = [tf.transpose(a, perm=[0, 2, 1]) for a in self_attention_alignment]
@@ -641,7 +648,8 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                     target=target,
                     teacher_alignments=(
                         tf.transpose(alignment1, perm=[0, 2, 1]),
-                        tf.transpose(alignment2, perm=[0, 2, 1])))
+                        tf.transpose(alignment2, perm=[0, 2, 1])),
+                    apply_dropout_on_inference=params.apply_dropout_on_inference)
 
                 if params.decoder == "DualSourceMgcLf0TransformerDecoder" and not is_training:
                     alignment1 = tf.transpose(decoder_state.rnn_state.rnn_state[0].alignment_history[0].stack(),
@@ -725,7 +733,8 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                     memory_sequence_length=features.source_length,
                     memory2_sequence_length=features.source_length,
                     target=target,
-                    teacher_forcing=True)
+                    teacher_forcing=True,
+                    apply_dropout_on_inference=params.apply_dropout_on_inference)
 
                 if params.use_postnet_v2:
                     postnet_v2_mgc_output_with_teacher = postnet(mgc_output_with_teacher)
@@ -903,7 +912,7 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
                                                                         memory_sequence_length=features.source_length,
                                                                         target_sequence_length=labels.target_length if is_training else None,
                                                                         target=target,
-                                                                        teacher_alignments=teacher_alignment)
+                                                                        apply_dropout_on_inference=params.apply_dropout_on_inference)
 
             # arrange to (B, T_memory, T_query)
             if params.decoder == "TransformerDecoder" and not is_training:
@@ -927,7 +936,8 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
                     memory_sequence_length=features.source_length,
                     target_sequence_length=labels.target_length if is_training else None,
                     target=target,
-                    teacher_alignments=tf.transpose(alignment, perm=[0, 2, 1]))
+                    teacher_alignments=tf.transpose(alignment, perm=[0, 2, 1]),
+                    apply_dropout_on_inference=params.apply_dropout_on_inference)
 
                 if params.decoder == "TransformerDecoder" and not is_training:
                     alignment = tf.transpose(decoder_state.rnn_state.rnn_state[0].alignment_history.stack(), [1, 2, 0])
@@ -1005,7 +1015,8 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
                     memory_sequence_length=features.source_length,
                     target_sequence_length=labels.target_length if is_training else None,
                     target=target,
-                    teacher_forcing=True)
+                    teacher_forcing=True,
+                    apply_dropout_on_inference=params.apply_dropout_on_inference)
 
                 if params.use_postnet_v2:
                     postnet_v2_mgc_output_with_teacher = postnet(mgc_output_with_teacher)

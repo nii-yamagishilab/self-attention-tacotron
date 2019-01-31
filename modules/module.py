@@ -515,15 +515,15 @@ class ExtendedDecoder(tf.layers.Layer):
 
     def call(self, source, attention_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False, memory_sequence_length=None, target_sequence_length=None,
-             target=None, teacher_alignments=None):
+             target=None, teacher_alignments=None, apply_dropout_on_inference=None):
         assert is_training is not None
         assert attention_fn is not None
 
         if speaker_embed is not None:
             prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate))
+                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate)
+            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source)[0]
@@ -867,15 +867,16 @@ class TransformerDecoder(tf.layers.Layer):
 
     def call(self, source, attention_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False, memory_sequence_length=None, target_sequence_length=None,
-             target=None, teacher_alignments=None):
+             target=None, teacher_alignments=None,
+             apply_dropout_on_inference=None):
         assert is_training is not None
         assert attention_fn is not None
 
         if speaker_embed is not None:
             prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate))
+                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate)
+            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source)[0]
@@ -980,11 +981,13 @@ class DualSourceDecoder(tf.layers.Layer):
     def build(self, _):
         self.built = True
 
-    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None,
+             is_training=None, is_validation=None,
              teacher_forcing=False,
              memory_sequence_length=None, memory2_sequence_length=None,
              target=None, teacher_alignments=(None, None),
-             target_sequence_length=None):  # target_sequence_length is not used except TransformerDecoder
+             target_sequence_length=None,  # target_sequence_length is not used except TransformerDecoder
+             apply_dropout_on_inference=None):
         assert is_training is not None
         assert attention1_fn is not None
         assert attention2_fn is not None
@@ -993,9 +996,9 @@ class DualSourceDecoder(tf.layers.Layer):
 
         if speaker_embed is not None:
             prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate))
+                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate)
+            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
@@ -1142,19 +1145,20 @@ class MgcLf0Decoder(tf.layers.Layer):
     def call(self, source, attention_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False,
              memory_sequence_length=None,
-             target=None, target_sequence_length=None, teacher_alignments=None):
+             target=None, target_sequence_length=None, teacher_alignments=None,
+             apply_dropout_on_inference=None):
         assert is_training is not None
         assert attention_fn is not None
 
         if speaker_embed is not None:
             mgc_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate))
+                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
             lf0_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate))
+                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate)
+            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
                                  for out_unit in self._prenet_out_units])
-            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate)
+            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
                                  for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source)[0]
@@ -1243,7 +1247,8 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
     def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False,
              memory_sequence_length=None, memory2_sequence_length=None,
-             target=None, teacher_alignments=(None, None)):
+             target=None, teacher_alignments=(None, None),
+             apply_dropout_on_inference=None):
         assert is_training is not None
         assert attention1_fn is not None
         assert attention2_fn is not None
@@ -1252,13 +1257,13 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
 
         if speaker_embed is not None:
             mgc_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate))
+                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
             lf0_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate))
+                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate)
+            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
                                  for out_unit in self._prenet_out_units])
-            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate)
+            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
                                  for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
@@ -1358,7 +1363,8 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
     def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False, memory_sequence_length=None, memory2_sequence_length=None,
              target_sequence_length=None,
-             target=None, teacher_alignments=(None, None)):
+             target=None, teacher_alignments=(None, None),
+             apply_dropout_on_inference=None):
         assert is_training is not None
         assert attention1_fn is not None
         assert attention2_fn is not None
@@ -1367,9 +1373,9 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
 
         if speaker_embed is not None:
             prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate))
+                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate)
+            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
@@ -1460,7 +1466,8 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
     def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
              teacher_forcing=False,
              memory_sequence_length=None, memory2_sequence_length=None,
-             target_sequence_length=None, target=None, teacher_alignments=(None, None)):
+             target_sequence_length=None, target=None, teacher_alignments=(None, None),
+             apply_dropout_on_inference=None):
         assert is_training is not None
         assert attention1_fn is not None
         assert attention2_fn is not None
@@ -1469,13 +1476,13 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
 
         if speaker_embed is not None:
             mgc_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate))
+                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
             lf0_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate))
+                           PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate)
+            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
                                  for out_unit in self._prenet_out_units])
-            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate)
+            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
                                  for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
