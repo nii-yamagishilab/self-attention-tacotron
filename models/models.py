@@ -8,7 +8,8 @@ from modules.module import ZoneoutEncoderV1, ExtendedDecoder, EncoderV1WithAccen
     MgcLf0Decoder, MgcLf0DualSourceDecoder, DualSourceMgcLf0TransformerDecoder
 from modules.metrics import MgcLf0MetricsSaver
 from modules.regularizers import l2_regularization_loss
-from models.attention_factories import attention_factory, dual_source_attention_factory, force_alignment_attention_factory, \
+from models.attention_factories import attention_factory, dual_source_attention_factory, \
+    force_alignment_attention_factory, \
     force_alignment_dual_source_attention_factory
 
 
@@ -142,7 +143,8 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
             if is_validation:
                 # validation with teacher forcing
                 mel_output_with_teacher, stop_token_with_teacher, decoder_state_with_teacher = decoder(encoder_output,
-                                                                                                       attention_fn=attention_factory(params),
+                                                                                                       attention_fn=attention_factory(
+                                                                                                           params),
                                                                                                        speaker_embed=speaker_embedding_output,
                                                                                                        is_training=is_training,
                                                                                                        is_validation=is_validation,
@@ -1157,7 +1159,10 @@ def encoder_factory(params, is_training):
                                                          self_attention_transformer_kernel_size=params.self_attention_transformer_kernel_size,
                                                          prenet_out_units=params.encoder_prenet_out_units_if_accent,
                                                          accent_type_prenet_out_units=params.accent_type_prenet_out_units,
-                                                         drop_rate=params.encoder_prenet_drop_rate)
+                                                         drop_rate=params.encoder_prenet_drop_rate,
+                                                         zoneout_factor_cell=params.zoneout_factor_cell,
+                                                         zoneout_factor_output=params.zoneout_factor_output,
+                                                         self_attention_drop_rate=params.self_attention_drop_rate)
     elif params.encoder == "SelfAttentionCBHGEncoder":
         encoder = SelfAttentionCBHGEncoder(is_training,
                                            cbhg_out_units=params.cbhg_out_units,
@@ -1172,7 +1177,10 @@ def encoder_factory(params, is_training):
                                            self_attention_transformer_num_conv_layers=params.self_attention_transformer_num_conv_layers,
                                            self_attention_transformer_kernel_size=params.self_attention_transformer_kernel_size,
                                            prenet_out_units=params.encoder_prenet_out_units,
-                                           drop_rate=params.encoder_prenet_drop_rate)
+                                           drop_rate=params.encoder_prenet_drop_rate,
+                                           zoneout_factor_cell=params.zoneout_factor_cell,
+                                           zoneout_factor_output=params.zoneout_factor_output,
+                                           self_attention_drop_rate=params.self_attention_drop_rate)
     elif params.use_accent_type and params.encoder == "EncoderV1WithAccentType":
         encoder = EncoderV1WithAccentType(is_training,
                                           cbhg_out_units=params.cbhg_out_units,
