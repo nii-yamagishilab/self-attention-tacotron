@@ -19,6 +19,7 @@ hparams = tf.contrib.training.HParams(
     ref_level_db=20,
     average_mel_level_db=[0.0],
     stddev_mel_level_db=[0.0],
+    min_mel_level_db=[0.0],
     silence_mel_level_db=-3.0,
 
     ## MGC
