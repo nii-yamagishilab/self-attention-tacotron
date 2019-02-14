@@ -34,8 +34,8 @@ if __name__ == "__main__":
 
     if args["--hparam-json-file"]:
         with open(args["--hparam-json-file"]) as f:
-            json = "".join(f.readlines())
-            hparams.parse_json(json)
+            hparams_json = "".join(f.readlines())
+            hparams.parse_json(hparams_json)
 
     hparams.parse(args["--hparams"])
     print(hparams_debug_string())
@@ -72,8 +72,8 @@ if __name__ == "__main__":
                 "sample_rate": hparams.sample_rate,
                 "frame_length_ms": hparams.frame_length_ms,
                 "frame_shift_ms": hparams.frame_shift_ms,
-                "average_mel_level_db": list(average),
-                "stddev_mel_level_db": list(stddev),
+                "average_mel_level_db": average.tolist(),
+                "stddev_mel_level_db": stddev.tolist(),
             }
             print(json.dumps(hparams_obj, indent=4))
             json.dump(hparams_obj, f, indent=4)
