@@ -24,9 +24,9 @@ class MultiSpeakerPreNet(tf.layers.Layer):
         self.built = True
 
     def call(self, inputs, **kwargs):
+        inputs += self.speaker_projection(self.speaker_embed)
         dense = self.dense(inputs)
         dropout = tf.layers.dropout(dense, rate=self.drop_rate, training=self.is_training)
-        dropout += self.speaker_projection(self.speaker_embed)
         return dropout
 
     def compute_output_shape(self, input_shape):
