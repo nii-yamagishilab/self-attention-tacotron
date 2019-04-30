@@ -9,5 +9,5 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_r
 git_repository(
     name = "tacotron2",
     remote = "https://github.com/nii-yamagishilab/tacotron2.git",
-    commit = "feb73e0ca5b3f7a85e9bc607b02c95126f488a1d",
+    commit = "6d008fe0b5dbc00cf7145317bb23978f85c11474",
 )

@@ -97,7 +97,7 @@ class ZoneoutCBHG(tf.layers.Layer):
                             zoneout_factor_output=self._zoneout_factor_output),
             highway_output,
             sequence_length=input_lengths,
-            dtype=tf.float32)
+            dtype=highway_output.dtype)
 
         return tf.concat(outputs, axis=-1)
 
@@ -195,7 +195,7 @@ class SelfAttentionCBHG(tf.layers.Layer):
                             zoneout_factor_output=self._zoneout_factor_output),
             highway_output,
             sequence_length=input_lengths,
-            dtype=tf.float32)
+            dtype=highway_output.dtype)
 
         bilstm_outputs = tf.concat(bilstm_outputs, axis=-1)
         return bilstm_outputs, self_attention_output, self_attention_alignments
@@ -543,7 +543,7 @@ class ExtendedDecoder(tf.layers.Layer):
             self.zoneout_factor_output) if self.decoder_version == "v2" else None
         output_and_done_cell = OutputAndStopTokenWrapper(decoder_cell, self.num_mels * self.outputs_per_step)
 
-        decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=tf.float32)
+        decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=source.dtype)
 
         helper = TrainingHelper(target,
                                 self.num_mels,
@@ -630,7 +630,9 @@ class RNNTransformer:
                  num_mels,
                  outputs_per_step,
                  n_feed_frame,
-                 max_iters):
+                 max_iters,
+                 batch_size,
+                 dtype):
         self._is_training = is_training
         self.decoder_cell = decoder_cell
         self.decoder_initial_state = decoder_initial_state
@@ -639,6 +641,8 @@ class RNNTransformer:
         self.outputs_per_step = outputs_per_step
         self.n_feed_frame = n_feed_frame
         self.max_iters = max_iters
+        self._batch_size = batch_size
+        self._dtype = dtype
 
         self.transformers = [
             SelfAttentionTransformer(is_training, self_attention_out_units,
@@ -659,17 +663,16 @@ class RNNTransformer:
 
     def __call__(self, target=None, is_training=None, is_validation=None, teacher_forcing=False,
                  memory_sequence_length=None):
-        batch_size = tf.shape(target)[0]  # ToDo: do not depend on target at prediction time
         helper = TransformerTrainingHelper(target,
                                            self.num_mels,
                                            self.outputs_per_step,
                                            n_feed_frame=self.n_feed_frame) if is_training \
-            else ValidationHelper(target, batch_size,
+            else ValidationHelper(target, self._batch_size,
                                   self.num_mels,
                                   self.outputs_per_step,
                                   n_feed_frame=self.n_feed_frame,
                                   teacher_forcing=teacher_forcing) if is_validation \
-            else StopTokenBasedInferenceHelper(batch_size,
+            else StopTokenBasedInferenceHelper(self._batch_size,
                                                self.num_mels,
                                                self.outputs_per_step,
                                                n_feed_frame=self.n_feed_frame)
@@ -701,7 +704,7 @@ class RNNTransformer:
                                                                         self.out_projection,
                                                                         self.stop_token_projection)
 
-            decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=tf.float32)
+            decoder_initial_state = output_and_done_cell.zero_state(self._batch_size, dtype=self._dtype)
 
             ((decoder_outputs, stop_token), _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
                 BasicDecoder(output_and_done_cell, helper, decoder_initial_state),
@@ -725,7 +728,9 @@ class MgcLf0RNNTransformer:
                  num_lf0s,
                  outputs_per_step,
                  n_feed_frame,
-                 max_iters):
+                 max_iters,
+                 batch_size,
+                 dtype):
         self._is_training = is_training
         self.decoder_cell = decoder_cell
         self.decoder_initial_state = decoder_initial_state
@@ -736,6 +741,8 @@ class MgcLf0RNNTransformer:
         self.outputs_per_step = outputs_per_step
         self.n_feed_frame = n_feed_frame
         self.max_iters = max_iters
+        self._batch_size = batch_size
+        self._dtype = dtype
 
         self.transformers = [
             SelfAttentionTransformer(is_training, self_attention_out_units,
@@ -759,7 +766,6 @@ class MgcLf0RNNTransformer:
     def __call__(self, target=None, is_training=None, is_validation=None, teacher_forcing=False,
                  memory_sequence_length=None):
         mgc_targets, lf0_targets = target
-        batch_size = tf.shape(mgc_targets)[0]  # ToDo: do not depend on target at prediction time
         helper = TrainingMgcLf0Helper(mgc_targets,
                                       lf0_targets,
                                       self.num_mgcs,
@@ -767,13 +773,13 @@ class MgcLf0RNNTransformer:
                                       self.outputs_per_step,
                                       n_feed_frame=self.n_feed_frame) if is_training \
             else ValidationMgcLf0Helper(mgc_targets,
-                                        lf0_targets, batch_size,
+                                        lf0_targets, self._batch_size,
                                         self.num_mgcs,
                                         self.num_lf0s,
                                         self.outputs_per_step,
                                         n_feed_frame=self.n_feed_frame,
                                         teacher_forcing=teacher_forcing) if is_validation \
-            else StopTokenBasedMgcLf0InferenceHelper(batch_size,
+            else StopTokenBasedMgcLf0InferenceHelper(self._batch_size,
                                                      self.num_mgcs,
                                                      self.num_lf0s,
                                                      self.outputs_per_step,
@@ -810,7 +816,7 @@ class MgcLf0RNNTransformer:
                                                                               self.lf0_out_projection,
                                                                               self.stop_token_projection)
 
-            decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=tf.float32)
+            decoder_initial_state = output_and_done_cell.zero_state(self._batch_size, dtype=self._dtype)
 
             ((decoder_mgc_outputs, decoder_lf0_outputs, stop_token),
              _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
@@ -895,7 +901,7 @@ class TransformerDecoder(tf.layers.Layer):
             self.zoneout_factor_cell,
             self.zoneout_factor_output) if self.decoder_version == "v2" else None
 
-        decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=tf.float32)
+        decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=source.dtype)
 
         rnn_transformer = RNNTransformer(is_training, decoder_cell, decoder_initial_state,
                                          self.self_attention_out_units,
@@ -907,7 +913,9 @@ class TransformerDecoder(tf.layers.Layer):
                                          self.num_mels,
                                          self.outputs_per_step,
                                          self.n_feed_frame,
-                                         self.max_iters)
+                                         self.max_iters,
+                                         batch_size,
+                                         source.dtype)
 
         decoder_outputs, stop_token, final_decoder_state = rnn_transformer(target, is_training=is_training,
                                                                            is_validation=is_validation,
@@ -1020,7 +1028,7 @@ class DualSourceDecoder(tf.layers.Layer):
             self.zoneout_factor_output) if self.decoder_version == "v2" else None
         output_and_done_cell = OutputAndStopTokenWrapper(decoder_cell, self.num_mels * self.outputs_per_step)
 
-        decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=tf.float32)
+        decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=source1.dtype)
 
         helper = TrainingHelper(target,
                                 self.num_mels,
@@ -1181,7 +1189,7 @@ class MgcLf0Decoder(tf.layers.Layer):
                                                                self.num_mgcs * self.outputs_per_step,
                                                                self.num_lf0s * self.outputs_per_step)
 
-        decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=tf.float32)
+        decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=source.dtype)
 
         helper = TrainingMgcLf0Helper(target[0],
                                       target[1],
@@ -1288,7 +1296,7 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
                                                                self.num_mgcs * self.outputs_per_step,
                                                                self.num_lf0s * self.outputs_per_step)
 
-        decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=tf.float32)
+        decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=source1.dtype)
 
         helper = TrainingMgcLf0Helper(target[0],
                                       target[1],
@@ -1396,7 +1404,7 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
             self.zoneout_factor_cell,
             self.zoneout_factor_output) if self.decoder_version == "v2" else None
 
-        decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=tf.float32)
+        decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=source1.dtype)
 
         rnn_transformer = RNNTransformer(is_training, decoder_cell, decoder_initial_state,
                                          self.self_attention_out_units,
@@ -1408,7 +1416,9 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
                                          self.num_mels,
                                          self.outputs_per_step,
                                          self.n_feed_frame,
-                                         self.max_iters)
+                                         self.max_iters,
+                                         batch_size,
+                                         source1.dtype)
 
         decoder_outputs, stop_token, final_decoder_state = rnn_transformer(target, is_training=is_training,
                                                                            is_validation=is_validation,
@@ -1504,7 +1514,7 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
             self.zoneout_factor_cell,
             self.zoneout_factor_output) if self.decoder_version == "v2" else None
 
-        decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=tf.float32)
+        decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=source1.dtype)
 
         rnn_transformer = MgcLf0RNNTransformer(is_training, decoder_cell, decoder_initial_state,
                                                self.self_attention_out_units,
