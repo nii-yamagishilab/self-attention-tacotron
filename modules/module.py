@@ -936,6 +936,7 @@ class DualSourceAttentionRNN(RNNCell):
         attention_cell = AttentionWrapper(
             DecoderPreNetWrapper(cell, prenets),
             [attention_mechanism1, attention_mechanism2],
+            cell_input_fn=(lambda inputs, attention: inputs),  # Disable concatenation of inputs and context
             alignment_history=True,
             output_attention=False)
         concat_cell = ConcatOutputAndAttentionWrapper(attention_cell)
@@ -1060,7 +1061,7 @@ class MgcLf0AttentionRNN(RNNCell):
         attention_cell = AttentionWrapper(
             DecoderMgcLf0PreNetWrapper(cell, mgc_prenets, lf0_prenets),
             attention_mechanism,
-            cell_input_fn=(lambda inputs, attention: inputs),  # Disable concatenation of inputs and alignment
+            cell_input_fn=(lambda inputs, attention: inputs),  # Disable concatenation of inputs and context
             alignment_history=True,
             output_attention=False)
         concat_cell = ConcatOutputAndAttentionWrapper(attention_cell)
