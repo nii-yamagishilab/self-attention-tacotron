@@ -47,7 +47,7 @@ class ScaledDotProductAttentionMechanism(AttentionMechanism):
         x = tf.matmul(query, self.keys, transpose_b=True)
 
         # scale attention output
-        s = tf.cast(tf.shape(query)[-1], dtype=tf.float32)
+        s = tf.cast(tf.shape(query)[-1], dtype=query.dtype)
         x = x / tf.sqrt(s)
 
         x = self.apply_padding_mask(x, memory_sequence_length) if self.use_padding_mask else x
