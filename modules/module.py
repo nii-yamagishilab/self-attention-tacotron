@@ -9,7 +9,6 @@ import tensorflow as tf
 from tensorflow.contrib.seq2seq import BasicDecoder
 from tensorflow.contrib.rnn import RNNCell
 from tensorflow.contrib.seq2seq import AttentionWrapper
-from modules.attentions import attention_mechanism_factory, AttentionOptions
 from modules.self_attention import SelfAttention
 from modules.rnn_wrappers import RNNStateHistoryWrapper, TransformerWrapper, \
     OutputMgcLf0AndStopTokenWrapper, DecoderMgcLf0PreNetWrapper, OutputAndStopTokenTransparentWrapper, \
@@ -23,6 +22,7 @@ from tacotron2.tacotron.tacotron_v2 import DecoderRNNV2
 from tacotron2.tacotron.rnn_wrappers import OutputAndStopTokenWrapper, AttentionRNN, ConcatOutputAndAttentionWrapper, \
     DecoderPreNetWrapper
 from tacotron2.tacotron.helpers import StopTokenBasedInferenceHelper, TrainingHelper, ValidationHelper
+from tacotron2.tacotron.rnn_impl import LSTMImpl
 from functools import reduce
 from typing import Tuple
 
@@ -31,7 +31,7 @@ class ZoneoutCBHG(tf.layers.Layer):
 
     def __init__(self, out_units, conv_channels, max_filter_width, projection1_out_channels, projection2_out_channels,
                  num_highway, is_training,
-                 zoneout_factor_cell=0.0, zoneout_factor_output=0.0,
+                 zoneout_factor_cell=0.0, zoneout_factor_output=0.0, lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         half_out_units = out_units // 2
         assert out_units % 2 == 0
@@ -41,6 +41,7 @@ class ZoneoutCBHG(tf.layers.Layer):
         self._is_training = is_training
         self._zoneout_factor_cell = zoneout_factor_cell
         self._zoneout_factor_output = zoneout_factor_output
+        self._lstm_impl = lstm_impl
 
         self.convolution_banks = [
             Conv1d(kernel_size,
@@ -90,11 +91,13 @@ class ZoneoutCBHG(tf.layers.Layer):
             ZoneoutLSTMCell(self.out_units // 2,
                             self._is_training,
                             zoneout_factor_cell=self._zoneout_factor_cell,
-                            zoneout_factor_output=self._zoneout_factor_output),
+                            zoneout_factor_output=self._zoneout_factor_output,
+                            lstm_impl=self._lstm_impl),
             ZoneoutLSTMCell(self.out_units // 2,
                             self._is_training,
                             zoneout_factor_cell=self._zoneout_factor_cell,
-                            zoneout_factor_output=self._zoneout_factor_output),
+                            zoneout_factor_output=self._zoneout_factor_output,
+                            lstm_impl=self._lstm_impl),
             highway_output,
             sequence_length=input_lengths,
             dtype=highway_output.dtype)
@@ -107,9 +110,16 @@ class ZoneoutCBHG(tf.layers.Layer):
 
 class SelfAttentionCBHG(tf.layers.Layer):
 
-    def __init__(self, out_units, conv_channels, max_filter_width, projection1_out_channels, projection2_out_channels,
-                 num_highway, self_attention_out_units, self_attention_num_heads, is_training,
+    def __init__(self, out_units,
+                 conv_channels,
+                 max_filter_width,
+                 projection1_out_channels,
+                 projection2_out_channels,
+                 num_highway, self_attention_out_units,
+                 self_attention_num_heads,
+                 is_training,
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0, self_attention_drop_rate=0.0,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         half_out_units = out_units // 2
         assert out_units % 2 == 0
@@ -121,6 +131,7 @@ class SelfAttentionCBHG(tf.layers.Layer):
         self._zoneout_factor_cell = zoneout_factor_cell
         self._zoneout_factor_output = zoneout_factor_output
         self._self_attention_out_units = self_attention_out_units
+        self._lstm_impl = lstm_impl
 
         self.convolution_banks = [
             Conv1d(kernel_size,
@@ -217,6 +228,7 @@ class EncoderV1WithAccentType(tf.layers.Layer):
                  drop_rate=0.5,
                  use_zoneout=False,
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(EncoderV1WithAccentType, self).__init__(name=name, trainable=trainable, **kwargs)
         self.prenet_out_units = prenet_out_units
@@ -235,13 +247,14 @@ class EncoderV1WithAccentType(tf.layers.Layer):
                                 num_highway,
                                 is_training,
                                 zoneout_factor_cell,
-                                zoneout_factor_output) if use_zoneout else CBHG(cbhg_out_units,
-                                                                                conv_channels,
-                                                                                max_filter_width,
-                                                                                projection1_out_channels,
-                                                                                projection2_out_channels,
-                                                                                num_highway,
-                                                                                is_training)
+                                zoneout_factor_output,
+                                lstm_impl=lstm_impl) if use_zoneout else CBHG(cbhg_out_units,
+                                                                              conv_channels,
+                                                                              max_filter_width,
+                                                                              projection1_out_channels,
+                                                                              projection2_out_channels,
+                                                                              num_highway,
+                                                                              is_training)
 
     def build(self, input_shape):
         (phoneme_input_shape, accent_type_shape) = input_shape
@@ -275,6 +288,7 @@ class ZoneoutEncoderV1(tf.layers.Layer):
                  drop_rate=0.5,
                  use_zoneout=False,
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(ZoneoutEncoderV1, self).__init__(name=name, trainable=trainable, **kwargs)
         self.prenet_out_units = prenet_out_units
@@ -290,13 +304,14 @@ class ZoneoutEncoderV1(tf.layers.Layer):
                                 num_highway,
                                 is_training,
                                 zoneout_factor_cell,
-                                zoneout_factor_output) if use_zoneout else CBHG(cbhg_out_units,
-                                                                                conv_channels,
-                                                                                max_filter_width,
-                                                                                projection1_out_channels,
-                                                                                projection2_out_channels,
-                                                                                num_highway,
-                                                                                is_training)
+                                zoneout_factor_output,
+                                lstm_impl=lstm_impl) if use_zoneout else CBHG(cbhg_out_units,
+                                                                              conv_channels,
+                                                                              max_filter_width,
+                                                                              projection1_out_channels,
+                                                                              projection2_out_channels,
+                                                                              num_highway,
+                                                                              is_training)
 
     def build(self, input_shape):
         embed_dim = input_shape[2].value
@@ -355,6 +370,7 @@ class SelfAttentionCBHGEncoder(tf.layers.Layer):
                  prenet_out_units=(256, 128), drop_rate=0.5,
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0,
                  self_attention_drop_rate=0.1,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(SelfAttentionCBHGEncoder, self).__init__(name=name, trainable=trainable, **kwargs)
         self.prenet_out_units = prenet_out_units
@@ -369,7 +385,8 @@ class SelfAttentionCBHGEncoder(tf.layers.Layer):
                                 num_highway,
                                 is_training,
                                 zoneout_factor_cell,
-                                zoneout_factor_output)
+                                zoneout_factor_output,
+                                lstm_impl=lstm_impl)
 
         self.self_attention_projection_layer = tf.layers.Dense(self_attention_out_units)
 
@@ -421,6 +438,7 @@ class SelfAttentionCBHGEncoderWithAccentType(tf.layers.Layer):
                  drop_rate=0.5,
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0,
                  self_attention_drop_rate=0.1,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(SelfAttentionCBHGEncoderWithAccentType, self).__init__(name=name, trainable=trainable, **kwargs)
         self.prenet_out_units = prenet_out_units
@@ -440,7 +458,8 @@ class SelfAttentionCBHGEncoderWithAccentType(tf.layers.Layer):
                                 num_highway,
                                 is_training,
                                 zoneout_factor_cell,
-                                zoneout_factor_output)
+                                zoneout_factor_output,
+                                lstm_impl=lstm_impl)
 
         self.self_attention_projection_layer = tf.layers.Dense(self_attention_out_units)
 
@@ -495,6 +514,7 @@ class ExtendedDecoder(tf.layers.Layer):
                  n_feed_frame=1,
                  zoneout_factor_cell=0.0,
                  zoneout_factor_output=0.0,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(ExtendedDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
         self._prenet_out_units = prenet_out_units
@@ -509,6 +529,7 @@ class ExtendedDecoder(tf.layers.Layer):
         self.n_feed_frame = n_feed_frame
         self.zoneout_factor_cell = zoneout_factor_cell
         self.zoneout_factor_output = zoneout_factor_output
+        self._lstm_impl = lstm_impl
 
     def build(self, _):
         self.built = True
@@ -530,8 +551,9 @@ class ExtendedDecoder(tf.layers.Layer):
         attention_mechanism = attention_fn(source, memory_sequence_length, teacher_alignments)
         attention_cell = AttentionRNN(ZoneoutLSTMCell(self.attention_out_units,
                                                       is_training,
-                                                      self.zoneout_factor_cell,
-                                                      self.zoneout_factor_output),
+                                                      zoneout_factor_cell=self.zoneout_factor_cell,
+                                                      zoneout_factor_output=self.zoneout_factor_output,
+                                                      lstm_impl=self._lstm_impl),
                                       prenets,
                                       attention_mechanism)
         decoder_cell = DecoderRNNV1(self.decoder_out_units,
@@ -539,8 +561,9 @@ class ExtendedDecoder(tf.layers.Layer):
             self.decoder_out_units,
             attention_cell,
             is_training,
-            self.zoneout_factor_cell,
-            self.zoneout_factor_output) if self.decoder_version == "v2" else None
+            zoneout_factor_cell=self.zoneout_factor_cell,
+            zoneout_factor_output=self.zoneout_factor_output,
+            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
         output_and_done_cell = OutputAndStopTokenWrapper(decoder_cell, self.num_mels * self.outputs_per_step)
 
         decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=source.dtype)
@@ -847,6 +870,7 @@ class TransformerDecoder(tf.layers.Layer):
                  self_attention_transformer_num_conv_layers=1,
                  self_attention_transformer_kernel_size=5,
                  self_attention_drop_rate=0.05,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(TransformerDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
         self._prenet_out_units = prenet_out_units
@@ -867,6 +891,7 @@ class TransformerDecoder(tf.layers.Layer):
         self.self_attention_transformer_num_conv_layers = self_attention_transformer_num_conv_layers
         self.self_attention_transformer_kernel_size = self_attention_transformer_kernel_size
         self.self_attention_drop_rate = self_attention_drop_rate
+        self._lstm_impl = lstm_impl
 
     def build(self, _):
         self.built = True
@@ -890,7 +915,8 @@ class TransformerDecoder(tf.layers.Layer):
         attention_cell = AttentionRNN(ZoneoutLSTMCell(self.attention_out_units,
                                                       is_training,
                                                       self.zoneout_factor_cell,
-                                                      self.zoneout_factor_output),
+                                                      self.zoneout_factor_output,
+                                                      lstm_impl=self._lstm_impl),
                                       prenets,
                                       attention_mechanism)
         decoder_cell = DecoderRNNV1(self.decoder_out_units,
@@ -899,7 +925,8 @@ class TransformerDecoder(tf.layers.Layer):
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
-            self.zoneout_factor_output) if self.decoder_version == "v2" else None
+            self.zoneout_factor_output,
+            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
 
         decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=source.dtype)
 
@@ -972,6 +999,7 @@ class DualSourceDecoder(tf.layers.Layer):
                  n_feed_frame=1,
                  zoneout_factor_cell=0.0,
                  zoneout_factor_output=0.0,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(DualSourceDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
         self._prenet_out_units = prenet_out_units
@@ -986,6 +1014,7 @@ class DualSourceDecoder(tf.layers.Layer):
         self.n_feed_frame = n_feed_frame
         self.zoneout_factor_cell = zoneout_factor_cell
         self.zoneout_factor_output = zoneout_factor_output
+        self._lstm_impl = lstm_impl
 
     def build(self, _):
         self.built = True
@@ -1016,7 +1045,8 @@ class DualSourceDecoder(tf.layers.Layer):
         attention_cell = DualSourceAttentionRNN(ZoneoutLSTMCell(self.attention_rnn_out_units,
                                                                 is_training,
                                                                 self.zoneout_factor_cell,
-                                                                self.zoneout_factor_output),
+                                                                self.zoneout_factor_output,
+                                                                lstm_impl=self._lstm_impl),
                                                 prenets,
                                                 attention_mechanism1,
                                                 attention_mechanism2)
@@ -1026,7 +1056,8 @@ class DualSourceDecoder(tf.layers.Layer):
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
-            self.zoneout_factor_output) if self.decoder_version == "v2" else None
+            self.zoneout_factor_output,
+            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
         output_and_done_cell = OutputAndStopTokenWrapper(decoder_cell, self.num_mels * self.outputs_per_step)
 
         decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=source1.dtype)
@@ -1132,6 +1163,7 @@ class MgcLf0Decoder(tf.layers.Layer):
                  n_feed_frame=1,
                  zoneout_factor_cell=0.0,
                  zoneout_factor_output=0.0,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(MgcLf0Decoder, self).__init__(name=name, trainable=trainable, **kwargs)
         self._prenet_out_units = prenet_out_units
@@ -1147,6 +1179,7 @@ class MgcLf0Decoder(tf.layers.Layer):
         self.n_feed_frame = n_feed_frame
         self.zoneout_factor_cell = zoneout_factor_cell
         self.zoneout_factor_output = zoneout_factor_output
+        self._lstm_impl = lstm_impl
 
     def build(self, _):
         self.built = True
@@ -1175,7 +1208,8 @@ class MgcLf0Decoder(tf.layers.Layer):
         attention_cell = MgcLf0AttentionRNN(ZoneoutLSTMCell(self.attention_rnn_out_units,
                                                             is_training,
                                                             self.zoneout_factor_cell,
-                                                            self.zoneout_factor_output),
+                                                            self.zoneout_factor_output,
+                                                            lstm_impl=self._lstm_impl),
                                             mgc_prenets,
                                             lf0_prenets,
                                             attention_mechanism)
@@ -1185,7 +1219,8 @@ class MgcLf0Decoder(tf.layers.Layer):
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
-            self.zoneout_factor_output) if self.decoder_version == "v2" else None
+            self.zoneout_factor_output,
+            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
         output_and_done_cell = OutputMgcLf0AndStopTokenWrapper(decoder_cell,
                                                                self.num_mgcs * self.outputs_per_step,
                                                                self.num_lf0s * self.outputs_per_step)
@@ -1234,6 +1269,7 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
                  n_feed_frame=1,
                  zoneout_factor_cell=0.0,
                  zoneout_factor_output=0.0,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(MgcLf0DualSourceDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
         self._prenet_out_units = prenet_out_units
@@ -1249,11 +1285,13 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
         self.n_feed_frame = n_feed_frame
         self.zoneout_factor_cell = zoneout_factor_cell
         self.zoneout_factor_output = zoneout_factor_output
+        self._lstm_impl = lstm_impl
 
     def build(self, _):
         self.built = True
 
-    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None,
+             is_validation=None,
              teacher_forcing=False,
              memory_sequence_length=None, memory2_sequence_length=None,
              target=None, teacher_alignments=(None, None),
@@ -1281,7 +1319,8 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
         attention_cell = DualSourceMgcLf0AttentionRNN(ZoneoutLSTMCell(self.attention_rnn_out_units,
                                                                       is_training,
                                                                       self.zoneout_factor_cell,
-                                                                      self.zoneout_factor_output),
+                                                                      self.zoneout_factor_output,
+                                                                      lstm_impl=self._lstm_impl),
                                                       mgc_prenets,
                                                       lf0_prenets,
                                                       attention_mechanism1,
@@ -1292,7 +1331,8 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
-            self.zoneout_factor_output) if self.decoder_version == "v2" else None
+            self.zoneout_factor_output,
+            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
         output_and_done_cell = OutputMgcLf0AndStopTokenWrapper(decoder_cell,
                                                                self.num_mgcs * self.outputs_per_step,
                                                                self.num_lf0s * self.outputs_per_step)
@@ -1345,6 +1385,7 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
                  self_attention_transformer_num_conv_layers=1,
                  self_attention_transformer_kernel_size=5,
                  self_attention_drop_rate=0.05,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(DualSourceTransformerDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
         self._prenet_out_units = prenet_out_units
@@ -1365,11 +1406,13 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
         self.self_attention_transformer_num_conv_layers = self_attention_transformer_num_conv_layers
         self.self_attention_transformer_kernel_size = self_attention_transformer_kernel_size
         self.self_attention_drop_rate = self_attention_drop_rate
+        self._lstm_impl = lstm_impl
 
     def build(self, _):
         self.built = True
 
-    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None,
+             is_validation=None,
              teacher_forcing=False, memory_sequence_length=None, memory2_sequence_length=None,
              target_sequence_length=None,
              target=None, teacher_alignments=(None, None),
@@ -1393,7 +1436,8 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
         attention_cell = DualSourceAttentionRNN(ZoneoutLSTMCell(self.attention_rnn_out_units,
                                                                 is_training,
                                                                 self.zoneout_factor_cell,
-                                                                self.zoneout_factor_output),
+                                                                self.zoneout_factor_output,
+                                                                lstm_impl=self._lstm_impl),
                                                 prenets,
                                                 attention_mechanism1,
                                                 attention_mechanism2)
@@ -1403,7 +1447,8 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
-            self.zoneout_factor_output) if self.decoder_version == "v2" else None
+            self.zoneout_factor_output,
+            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
 
         decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=source1.dtype)
 
@@ -1449,6 +1494,7 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
                  self_attention_transformer_num_conv_layers=1,
                  self_attention_transformer_kernel_size=5,
                  self_attention_drop_rate=0.05,
+                 lstm_impl=LSTMImpl.LSTMCell,
                  trainable=True, name=None, **kwargs):
         super(DualSourceMgcLf0TransformerDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
         self._prenet_out_units = prenet_out_units
@@ -1470,11 +1516,13 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
         self.self_attention_transformer_num_conv_layers = self_attention_transformer_num_conv_layers
         self.self_attention_transformer_kernel_size = self_attention_transformer_kernel_size
         self.self_attention_drop_rate = self_attention_drop_rate
+        self._lstm_impl = lstm_impl
 
     def build(self, _):
         self.built = True
 
-    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None, is_validation=None,
+    def call(self, sources, attention1_fn=None, attention2_fn=None, speaker_embed=None, is_training=None,
+             is_validation=None,
              teacher_forcing=False,
              memory_sequence_length=None, memory2_sequence_length=None,
              target_sequence_length=None, target=None, teacher_alignments=(None, None),
@@ -1502,7 +1550,8 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
         attention_cell = DualSourceMgcLf0AttentionRNN(ZoneoutLSTMCell(self.attention_rnn_out_units,
                                                                       is_training,
                                                                       self.zoneout_factor_cell,
-                                                                      self.zoneout_factor_output),
+                                                                      self.zoneout_factor_output,
+                                                                      lstm_impl=self._lstm_impl),
                                                       mgc_prenets,
                                                       lf0_prenets,
                                                       attention_mechanism1,
@@ -1513,7 +1562,8 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
-            self.zoneout_factor_output) if self.decoder_version == "v2" else None
+            self.zoneout_factor_output,
+            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
 
         decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=source1.dtype)
 
