@@ -6,6 +6,7 @@
 """  """
 
 import tensorflow as tf
+from tensorflow.python.keras import backend
 from tensorflow.contrib.seq2seq import Helper
 
 
@@ -41,7 +42,7 @@ class TransformerTrainingHelper(Helper):
     def initialize(self, name=None):
         return (
             tf.tile([False], [self._batch_size]),
-            self._go_frames(self._batch_size, self._output_dim * self.n_feed_frame))
+            _go_frames(self._batch_size, self._output_dim * self.n_feed_frame, self._targets.dtype))
 
     def sample(self, time, outputs, state, name=None):
         # return all-zero dummy tensor
@@ -53,14 +54,10 @@ class TransformerTrainingHelper(Helper):
         next_inputs.set_shape([outputs.get_shape()[0].value, self._output_dim * self.n_feed_frame])
         return (finished, next_inputs, state)
 
-    @staticmethod
-    def _go_frames(batch_size, output_dim, n_feed_frame=1):
-        return tf.tile([[0.0]], [batch_size, output_dim * n_feed_frame])
-
 
 class StopTokenBasedMgcLf0InferenceHelper(Helper):
 
-    def __init__(self, batch_size, mgc_output_dim, lf0_output_dim, r, n_feed_frame=1, min_iters=10):
+    def __init__(self, batch_size, mgc_output_dim, lf0_output_dim, r, n_feed_frame=1, min_iters=10, dtype=None):
         assert n_feed_frame <= r
         self._batch_size = batch_size
         self._mgc_output_dim = mgc_output_dim
@@ -68,6 +65,7 @@ class StopTokenBasedMgcLf0InferenceHelper(Helper):
         self.r = r
         self.n_feed_frame = n_feed_frame
         self.min_iters = min_iters
+        self._dtype = dtype or backend.floatx()
 
     @property
     def batch_size(self):
@@ -82,8 +80,8 @@ class StopTokenBasedMgcLf0InferenceHelper(Helper):
         return tf.int32
 
     def initialize(self, name=None):
-        initial_mgc_lf0 = (_go_frames(self._batch_size, self._mgc_output_dim * self.n_feed_frame),
-                           _go_frames(self._batch_size, self._lf0_output_dim * self.n_feed_frame))
+        initial_mgc_lf0 = (_go_frames(self._batch_size, self._mgc_output_dim * self.n_feed_frame, self._dtype),
+                           _go_frames(self._batch_size, self._lf0_output_dim * self.n_feed_frame, self._dtype))
         return tf.tile([False], [self._batch_size]), initial_mgc_lf0
 
     def sample(self, time, outputs, state, name=None):
@@ -142,8 +140,10 @@ class ValidationMgcLf0Helper(Helper):
         return tf.int32
 
     def initialize(self, name=None):
-        initial_mgc_lf0 = (_go_frames(self._batch_size, self._mgc_output_dim * self.n_feed_frame),
-                           _go_frames(self._batch_size, self._lf0_output_dim * self.n_feed_frame))
+        initial_mgc_lf0 = (_go_frames(self._batch_size, self._mgc_output_dim * self.n_feed_frame,
+                                      self._mgc_targets.dtype),
+                           _go_frames(self._batch_size, self._lf0_output_dim * self.n_feed_frame,
+                                      self._mgc_targets.dtype))
         return tf.tile([False], [self._batch_size]), initial_mgc_lf0
 
     def sample(self, time, outputs, state, name=None):
@@ -202,8 +202,10 @@ class TrainingMgcLf0Helper(Helper):
         return tf.int32
 
     def initialize(self, name=None):
-        initial_mgc_lf0 = (_go_frames(self._batch_size, self._mgc_output_dim * self.n_feed_frame),
-                           _go_frames(self._batch_size, self._lf0_output_dim * self.n_feed_frame))
+        initial_mgc_lf0 = (_go_frames(self._batch_size, self._mgc_output_dim * self.n_feed_frame,
+                                      self._mgc_targets.dtype),
+                           _go_frames(self._batch_size, self._lf0_output_dim * self.n_feed_frame,
+                                      self._mgc_targets.dtype))
         return tf.tile([False], [self._batch_size]), initial_mgc_lf0
 
     def sample(self, time, outputs, state, name=None):
@@ -219,5 +221,5 @@ class TrainingMgcLf0Helper(Helper):
         return (finished, (next_mgc_inputs, next_lf0_inputs), state)
 
 
-def _go_frames(batch_size, output_dim, n_feed_frame=1):
-    return tf.tile([[0.0]], [batch_size, output_dim * n_feed_frame])
+def _go_frames(batch_size, output_dim, dtype):
+    return tf.tile(tf.convert_to_tensor([[0.0]], dtype=dtype), [batch_size, output_dim])
