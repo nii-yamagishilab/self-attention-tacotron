@@ -577,7 +577,7 @@ class Projection:
             self.bias = tf.get_variable('bias',
                                         shape=[out_units, ],
                                         dtype=dtype,
-                                        initializer=tf.zeros_initializer(dtype=dtypes))
+                                        initializer=tf.zeros_initializer(dtype=dtype))
 
     def __call__(self, inputs, **kwargs):
         shape = inputs.get_shape().as_list()
