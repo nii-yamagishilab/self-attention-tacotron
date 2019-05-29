@@ -53,7 +53,8 @@ def attention_mechanism_factory(options: AttentionOptions):
         elif options.attention == "additive":
             mechanism = BahdanauAttention(num_units=options.num_units,
                                           memory=memory,
-                                          memory_sequence_length=memory_sequence_length)
+                                          memory_sequence_length=memory_sequence_length,
+                                          dtype=memory.dtype)
         else:
             raise ValueError(f"Unknown attention mechanism: {options.attention}")
         return mechanism
