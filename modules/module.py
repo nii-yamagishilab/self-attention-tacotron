@@ -600,7 +600,7 @@ class Projection:
             self.bias = tf.get_variable('bias',
                                         shape=[out_units, ],
                                         dtype=dtype,
-                                        initializer=tf.zeros_initializer())
+                                        initializer=tf.zeros_initializer(dtype=dtype))
 
     def __call__(self, inputs, **kwargs):
         shape = inputs.get_shape().as_list()
@@ -620,7 +620,7 @@ class MGCProjection:
             self.dense_bias1 = tf.get_variable('dense_bias1',
                                                shape=[in_units, ],
                                                dtype=dtype,
-                                               initializer=tf.zeros_initializer())
+                                               initializer=tf.zeros_initializer(dtype=dtype))
 
             self.dense_kernel2 = tf.get_variable('dense_kernel2',
                                                  shape=[in_units, out_units],
@@ -629,7 +629,7 @@ class MGCProjection:
             self.dense_bias2 = tf.get_variable('dense_bias2',
                                                shape=[out_units, ],
                                                dtype=dtype,
-                                               initializer=tf.zeros_initializer())
+                                               initializer=tf.zeros_initializer(dtype=dtype))
 
     def __call__(self, inputs, **kwargs):
         shape = inputs.get_shape().as_list()
@@ -679,8 +679,10 @@ class RNNTransformer:
         # at inference time, outputs are evaluated within dynamic_decode (dynamic_decode has "decoder" scope)
         with tf.variable_scope("decoder") as decoder_scope:
             self.out_projection = Projection(self_attention_out_units, self._out_units, is_training,
+                                             dtype=self._dtype,
                                              name="out_projection")
             self.stop_token_projection = Projection(self_attention_out_units, 1, is_training,
+                                                    dtype=self._dtype,
                                                     name="stop_token_projection")
             self._decoder_scope = decoder_scope
 
@@ -779,10 +781,13 @@ class MgcLf0RNNTransformer:
         # at inference time, outputs are evaluated within dynamic_decode (dynamic_decode has "decoder" scope)
         with tf.variable_scope("decoder") as decoder_scope:
             self.mgc_out_projection = MGCProjection(self_attention_out_units, self._mgc_out_units, is_training,
+                                                    dtype=self._dtype,
                                                     name="mgc_out_projection")
             self.lf0_out_projection = Projection(self_attention_out_units, self._lf0_out_units, is_training,
+                                                 dtype=self._dtype,
                                                  name="lf0_out_projection")
             self.stop_token_projection = Projection(self_attention_out_units, 1, is_training,
+                                                    dtype=self._dtype,
                                                     name="stop_token_projection")
             self._decoder_scope = decoder_scope
 
