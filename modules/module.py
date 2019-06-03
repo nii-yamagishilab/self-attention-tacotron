@@ -67,9 +67,9 @@ class ZoneoutCBHG(tf.layers.Layer):
                                   name="proj2",
                                   dtype=dtype)
 
-        self.adjustment_layer = tf.layers.Dense(half_out_units)
+        self.adjustment_layer = tf.layers.Dense(half_out_units, dtype=dtype)
 
-        self.highway_nets = [HighwayNet(half_out_units) for i in range(1, num_highway + 1)]
+        self.highway_nets = [HighwayNet(half_out_units, dtype=dtype) for i in range(1, num_highway + 1)]
 
     def build(self, _):
         self.built = True
