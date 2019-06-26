@@ -58,7 +58,9 @@ class TransformerTest(tf.test.TestCase):
                                          num_mels=target_dim,
                                          outputs_per_step=r,
                                          n_feed_frame=r,
-                                         max_iters=100)
+                                         max_iters=100,
+                                         batch_size=batch_size,
+                                         dtype=target.dtype)
 
             training_output, training_stop_token, training_state = transformer(target, is_training=True,
                                                                                is_validation=False,
@@ -70,7 +72,7 @@ class TransformerTest(tf.test.TestCase):
                                                                                   teacher_forcing=True,
                                                                                   memory_sequence_length=target_lengths)
 
-        with self.test_session() as sess:
+        with self.cached_session() as sess:
             sess.run(tf.global_variables_initializer())
             training_output_value, inference_output_value = sess.run([training_output, inference_output])
             training_stop_token_value, inference_stop_token_value = sess.run(
@@ -102,7 +104,9 @@ class TransformerTest(tf.test.TestCase):
                                                num_lf0s=target_dim,
                                                outputs_per_step=r,
                                                n_feed_frame=r,
-                                               max_iters=100)
+                                               max_iters=100,
+                                               batch_size=batch_size,
+                                               dtype=target.dtype)
 
             training_output1, training_output2, training_stop_token, training_state = transformer((target, target),
                                                                                                   is_training=True,
@@ -116,7 +120,7 @@ class TransformerTest(tf.test.TestCase):
                                                                                                       teacher_forcing=True,
                                                                                                       memory_sequence_length=target_lengths)
 
-        with self.test_session() as sess:
+        with self.cached_session() as sess:
             sess.run(tf.global_variables_initializer())
             training_output_value1, training_output_value2, inference_output_value1, inference_output_value2 = sess.run(
                 [training_output1,
