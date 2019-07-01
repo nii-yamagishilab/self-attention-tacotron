@@ -126,15 +126,15 @@ class TransformerWrapper(TransparentRNNCellLike):
 
 class OutputMgcLf0AndStopTokenWrapper(RNNCell):
 
-    def __init__(self, cell, mgc_out_units, lf0_out_units):
+    def __init__(self, cell, mgc_out_units, lf0_out_units, dtype=None):
         super(OutputMgcLf0AndStopTokenWrapper, self).__init__()
         self._mgc_out_units = mgc_out_units
         self._lf0_out_units = lf0_out_units
         self._cell = cell
-        self.mgc_out_projection1 = tf.layers.Dense(cell.output_size, activation=tf.nn.tanh)
-        self.mgc_out_projection2 = tf.layers.Dense(mgc_out_units)
-        self.lf0_out_projection = tf.layers.Dense(lf0_out_units)
-        self.stop_token_projection = tf.layers.Dense(1)
+        self.mgc_out_projection1 = tf.layers.Dense(cell.output_size, activation=tf.nn.tanh, dtype=dtype)
+        self.mgc_out_projection2 = tf.layers.Dense(mgc_out_units, dtype=dtype)
+        self.lf0_out_projection = tf.layers.Dense(lf0_out_units, dtype=dtype)
+        self.stop_token_projection = tf.layers.Dense(1, dtype=dtype)
 
     @property
     def state_size(self):

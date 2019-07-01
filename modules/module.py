@@ -32,10 +32,10 @@ class ZoneoutCBHG(tf.layers.Layer):
     def __init__(self, out_units, conv_channels, max_filter_width, projection1_out_channels, projection2_out_channels,
                  num_highway, is_training,
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0, lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
+                 trainable=True, name=None, dtype=None, **kwargs):
         half_out_units = out_units // 2
         assert out_units % 2 == 0
-        super(ZoneoutCBHG, self).__init__(name=name, trainable=trainable, **kwargs)
+        super(ZoneoutCBHG, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
 
         self.out_units = out_units
         self._is_training = is_training
@@ -48,25 +48,28 @@ class ZoneoutCBHG(tf.layers.Layer):
                    conv_channels,
                    activation=tf.nn.relu,
                    is_training=is_training,
-                   name=f"conv1d_K{kernel_size}")
+                   name=f"conv1d_K{kernel_size}",
+                   dtype=dtype)
             for kernel_size in range(1, max_filter_width + 1)]
-        self.maxpool = tf.layers.MaxPooling1D(pool_size=2, strides=1, padding="SAME")
+        self.maxpool = tf.layers.MaxPooling1D(pool_size=2, strides=1, padding="SAME", dtype=dtype)
 
         self.projection1 = Conv1d(kernel_size=3,
                                   out_channels=projection1_out_channels,
                                   activation=tf.nn.relu,
                                   is_training=is_training,
-                                  name="proj1")
+                                  name="proj1",
+                                  dtype=dtype)
 
         self.projection2 = Conv1d(kernel_size=3,
                                   out_channels=projection2_out_channels,
                                   activation=tf.identity,
                                   is_training=is_training,
-                                  name="proj2")
+                                  name="proj2",
+                                  dtype=dtype)
 
-        self.adjustment_layer = tf.layers.Dense(half_out_units)
+        self.adjustment_layer = tf.layers.Dense(half_out_units, dtype=dtype)
 
-        self.highway_nets = [HighwayNet(half_out_units) for i in range(1, num_highway + 1)]
+        self.highway_nets = [HighwayNet(half_out_units, dtype=dtype) for i in range(1, num_highway + 1)]
 
     def build(self, _):
         self.built = True
@@ -92,12 +95,14 @@ class ZoneoutCBHG(tf.layers.Layer):
                             self._is_training,
                             zoneout_factor_cell=self._zoneout_factor_cell,
                             zoneout_factor_output=self._zoneout_factor_output,
-                            lstm_impl=self._lstm_impl),
+                            lstm_impl=self._lstm_impl,
+                            dtype=self.dtype),
             ZoneoutLSTMCell(self.out_units // 2,
                             self._is_training,
                             zoneout_factor_cell=self._zoneout_factor_cell,
                             zoneout_factor_output=self._zoneout_factor_output,
-                            lstm_impl=self._lstm_impl),
+                            lstm_impl=self._lstm_impl,
+                            dtype=self.dtype),
             highway_output,
             sequence_length=input_lengths,
             dtype=highway_output.dtype)
@@ -120,11 +125,11 @@ class SelfAttentionCBHG(tf.layers.Layer):
                  is_training,
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0, self_attention_drop_rate=0.0,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
+                 trainable=True, name=None, dtype=None, **kwargs):
         half_out_units = out_units // 2
         assert out_units % 2 == 0
         assert num_highway == 4
-        super(SelfAttentionCBHG, self).__init__(name=name, trainable=trainable, **kwargs)
+        super(SelfAttentionCBHG, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
 
         self.out_units = out_units
         self._is_training = is_training
@@ -138,32 +143,36 @@ class SelfAttentionCBHG(tf.layers.Layer):
                    conv_channels,
                    activation=tf.nn.relu,
                    is_training=is_training,
-                   name=f"conv1d_K{kernel_size}")
+                   name=f"conv1d_K{kernel_size}",
+                   dtype=dtype)
             for kernel_size in range(1, max_filter_width + 1)]
-        self.maxpool = tf.layers.MaxPooling1D(pool_size=2, strides=1, padding="SAME")
+        self.maxpool = tf.layers.MaxPooling1D(pool_size=2, strides=1, padding="SAME", dtype=dtype)
 
         self.projection1 = Conv1d(kernel_size=3,
                                   out_channels=projection1_out_channels,
                                   activation=tf.nn.relu,
                                   is_training=is_training,
-                                  name="proj1")
+                                  name="proj1",
+                                  dtype=dtype)
 
         self.projection2 = Conv1d(kernel_size=3,
                                   out_channels=projection2_out_channels,
                                   activation=tf.identity,
                                   is_training=is_training,
-                                  name="proj2")
+                                  name="proj2",
+                                  dtype=dtype)
 
-        self.adjustment_layer = tf.layers.Dense(half_out_units)
+        self.adjustment_layer = tf.layers.Dense(half_out_units, dtype=dtype)
 
-        self.highway_nets = [HighwayNet(half_out_units) for i in range(1, num_highway + 1)]
+        self.highway_nets = [HighwayNet(half_out_units, dtype=dtype) for i in range(1, num_highway + 1)]
 
-        self.self_attention_adjustment_layer = tf.layers.Dense(self_attention_out_units)
+        self.self_attention_adjustment_layer = tf.layers.Dense(self_attention_out_units, dtype=dtype)
 
-        self.self_attention_highway_nets = [HighwayNet(self_attention_out_units) for i in range(1, num_highway + 1)]
+        self.self_attention_highway_nets = [HighwayNet(self_attention_out_units, dtype=dtype)
+                                            for i in range(1, num_highway + 1)]
 
         self.self_attention = SelfAttention(self_attention_out_units, self_attention_num_heads,
-                                            self_attention_drop_rate, is_training)
+                                            self_attention_drop_rate, is_training, dtype=dtype)
 
     def build(self, _):
         self.built = True
@@ -199,11 +208,13 @@ class SelfAttentionCBHG(tf.layers.Layer):
             ZoneoutLSTMCell(self.out_units // 2,
                             self._is_training,
                             zoneout_factor_cell=self._zoneout_factor_cell,
-                            zoneout_factor_output=self._zoneout_factor_output),
+                            zoneout_factor_output=self._zoneout_factor_output,
+                            dtype=self.dtype),
             ZoneoutLSTMCell(self.out_units // 2,
                             self._is_training,
                             zoneout_factor_cell=self._zoneout_factor_cell,
-                            zoneout_factor_output=self._zoneout_factor_output),
+                            zoneout_factor_output=self._zoneout_factor_output,
+                            dtype=self.dtype),
             highway_output,
             sequence_length=input_lengths,
             dtype=highway_output.dtype)
@@ -229,14 +240,14 @@ class EncoderV1WithAccentType(tf.layers.Layer):
                  use_zoneout=False,
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(EncoderV1WithAccentType, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(EncoderV1WithAccentType, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self.prenet_out_units = prenet_out_units
         self.accent_type_prenet_out_units = accent_type_prenet_out_units
         self.cbhg_out_units = cbhg_out_units
 
-        self.prenets = [PreNet(out_unit, is_training, drop_rate) for out_unit in prenet_out_units]
-        self.accent_type_prenets = [PreNet(out_unit, is_training, drop_rate) for out_unit in
+        self.prenets = [PreNet(out_unit, is_training, drop_rate, dtype=dtype) for out_unit in prenet_out_units]
+        self.accent_type_prenets = [PreNet(out_unit, is_training, drop_rate, dtype=dtype) for out_unit in
                                     accent_type_prenet_out_units]
 
         self.cbhg = ZoneoutCBHG(cbhg_out_units,
@@ -248,13 +259,15 @@ class EncoderV1WithAccentType(tf.layers.Layer):
                                 is_training,
                                 zoneout_factor_cell,
                                 zoneout_factor_output,
-                                lstm_impl=lstm_impl) if use_zoneout else CBHG(cbhg_out_units,
-                                                                              conv_channels,
-                                                                              max_filter_width,
-                                                                              projection1_out_channels,
-                                                                              projection2_out_channels,
-                                                                              num_highway,
-                                                                              is_training)
+                                lstm_impl=lstm_impl,
+                                dtype=dtype) if use_zoneout else CBHG(cbhg_out_units,
+                                                                      conv_channels,
+                                                                      max_filter_width,
+                                                                      projection1_out_channels,
+                                                                      projection2_out_channels,
+                                                                      num_highway,
+                                                                      is_training,
+                                                                      dtype=dtype)
 
     def build(self, input_shape):
         (phoneme_input_shape, accent_type_shape) = input_shape
@@ -289,12 +302,12 @@ class ZoneoutEncoderV1(tf.layers.Layer):
                  use_zoneout=False,
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(ZoneoutEncoderV1, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(ZoneoutEncoderV1, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self.prenet_out_units = prenet_out_units
         self.cbhg_out_units = cbhg_out_units
 
-        self.prenets = [PreNet(out_unit, is_training, drop_rate) for out_unit in prenet_out_units]
+        self.prenets = [PreNet(out_unit, is_training, drop_rate, dtype=dtype) for out_unit in prenet_out_units]
 
         self.cbhg = ZoneoutCBHG(cbhg_out_units,
                                 conv_channels,
@@ -305,13 +318,15 @@ class ZoneoutEncoderV1(tf.layers.Layer):
                                 is_training,
                                 zoneout_factor_cell,
                                 zoneout_factor_output,
-                                lstm_impl=lstm_impl) if use_zoneout else CBHG(cbhg_out_units,
-                                                                              conv_channels,
-                                                                              max_filter_width,
-                                                                              projection1_out_channels,
-                                                                              projection2_out_channels,
-                                                                              num_highway,
-                                                                              is_training)
+                                lstm_impl=lstm_impl,
+                                dtype=dtype) if use_zoneout else CBHG(cbhg_out_units,
+                                                                      conv_channels,
+                                                                      max_filter_width,
+                                                                      projection1_out_channels,
+                                                                      projection2_out_channels,
+                                                                      num_highway,
+                                                                      is_training,
+                                                                      dtype=dtype)
 
     def build(self, input_shape):
         embed_dim = input_shape[2].value
@@ -332,14 +347,15 @@ class SelfAttentionTransformer(tf.layers.Layer):
     def __init__(self, is_training, out_units=32, num_conv_layers=1, kernel_size=5, self_attention_out_units=256,
                  self_attention_num_heads=2, self_attention_drop_rate=0.05,
                  use_subsequent_mask=False,
-                 trainable=True, name=None, **kwargs):
-        super(SelfAttentionTransformer, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(SelfAttentionTransformer, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
 
         self.self_attention = SelfAttention(self_attention_out_units, self_attention_num_heads,
                                             self_attention_drop_rate, is_training,
-                                            use_subsequent_mask=use_subsequent_mask)
+                                            use_subsequent_mask=use_subsequent_mask,
+                                            dtype=dtype)
 
-        self.transform_layers = [tf.layers.Dense(out_units, activation=tf.nn.tanh)]
+        self.transform_layers = [tf.layers.Dense(out_units, activation=tf.nn.tanh, dtype=dtype)]
 
     def build(self, _):
         self.built = True
@@ -348,7 +364,7 @@ class SelfAttentionTransformer(tf.layers.Layer):
         self_attention_output, self_attention_alignment = self.self_attention(inputs,
                                                                               memory_sequence_length=memory_sequence_length)
 
-        transformed = reduce(lambda acc, conv: conv(acc), self.transform_layers, self_attention_output)
+        transformed = reduce(lambda acc, l: l(acc), self.transform_layers, self_attention_output)
 
         residual = inputs + transformed
 
@@ -371,11 +387,11 @@ class SelfAttentionCBHGEncoder(tf.layers.Layer):
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0,
                  self_attention_drop_rate=0.1,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(SelfAttentionCBHGEncoder, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(SelfAttentionCBHGEncoder, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self.prenet_out_units = prenet_out_units
 
-        self.prenets = [PreNet(out_unit, is_training, drop_rate) for out_unit in prenet_out_units]
+        self.prenets = [PreNet(out_unit, is_training, drop_rate, dtype=dtype) for out_unit in prenet_out_units]
 
         self.cbhg = ZoneoutCBHG(cbhg_out_units,
                                 conv_channels,
@@ -386,15 +402,19 @@ class SelfAttentionCBHGEncoder(tf.layers.Layer):
                                 is_training,
                                 zoneout_factor_cell,
                                 zoneout_factor_output,
-                                lstm_impl=lstm_impl)
+                                lstm_impl=lstm_impl,
+                                dtype=dtype)
 
-        self.self_attention_projection_layer = tf.layers.Dense(self_attention_out_units)
+        self.self_attention_projection_layer = tf.layers.Dense(self_attention_out_units, dtype=dtype)
 
         self.self_attention = [
-            SelfAttentionTransformer(is_training, self_attention_out_units, self_attention_transformer_num_conv_layers,
-                                     self_attention_transformer_kernel_size,
-                                     self_attention_out_units, self_attention_num_heads,
-                                     self_attention_drop_rate, use_subsequent_mask=False) for i in
+            SelfAttentionTransformer(is_training,
+                                     out_units=self_attention_out_units,
+                                     self_attention_out_units=self_attention_out_units,
+                                     self_attention_num_heads=self_attention_num_heads,
+                                     self_attention_drop_rate=self_attention_drop_rate,
+                                     use_subsequent_mask=False,
+                                     dtype=dtype) for i in
             range(1, self_attention_num_hop + 1)]
 
     def build(self, input_shape):
@@ -439,15 +459,16 @@ class SelfAttentionCBHGEncoderWithAccentType(tf.layers.Layer):
                  zoneout_factor_cell=0.0, zoneout_factor_output=0.0,
                  self_attention_drop_rate=0.1,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(SelfAttentionCBHGEncoderWithAccentType, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(SelfAttentionCBHGEncoderWithAccentType, self).__init__(trainable=trainable, name=name, dtype=dtype,
+                                                                     **kwargs)
         self.prenet_out_units = prenet_out_units
         self.accent_type_prenet_out_units = accent_type_prenet_out_units
         self.self_attention_out_units = self_attention_out_units
         self.cbhg_out_units = cbhg_out_units
 
-        self.prenets = [PreNet(out_unit, is_training, drop_rate) for out_unit in prenet_out_units]
-        self.accent_type_prenets = [PreNet(out_unit, is_training, drop_rate) for out_unit in
+        self.prenets = [PreNet(out_unit, is_training, drop_rate, dtype=dtype) for out_unit in prenet_out_units]
+        self.accent_type_prenets = [PreNet(out_unit, is_training, drop_rate, dtype=dtype) for out_unit in
                                     accent_type_prenet_out_units]
 
         self.cbhg = ZoneoutCBHG(cbhg_out_units,
@@ -459,15 +480,19 @@ class SelfAttentionCBHGEncoderWithAccentType(tf.layers.Layer):
                                 is_training,
                                 zoneout_factor_cell,
                                 zoneout_factor_output,
-                                lstm_impl=lstm_impl)
+                                lstm_impl=lstm_impl,
+                                dtype=dtype)
 
-        self.self_attention_projection_layer = tf.layers.Dense(self_attention_out_units)
+        self.self_attention_projection_layer = tf.layers.Dense(self_attention_out_units, dtype=dtype)
 
         self.self_attention = [
-            SelfAttentionTransformer(is_training, self_attention_out_units, self_attention_transformer_num_conv_layers,
-                                     self_attention_transformer_kernel_size,
-                                     self_attention_out_units, self_attention_num_heads,
-                                     self_attention_drop_rate, use_subsequent_mask=False) for i in
+            SelfAttentionTransformer(is_training,
+                                     out_units=self_attention_out_units,
+                                     self_attention_out_units=self_attention_out_units,
+                                     self_attention_num_heads=self_attention_num_heads,
+                                     self_attention_drop_rate=self_attention_drop_rate,
+                                     use_subsequent_mask=False,
+                                     dtype=dtype) for i in
             range(1, self_attention_num_hop + 1)]
 
     def build(self, input_shape):
@@ -515,8 +540,8 @@ class ExtendedDecoder(tf.layers.Layer):
                  zoneout_factor_cell=0.0,
                  zoneout_factor_output=0.0,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(ExtendedDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(ExtendedDecoder, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_out_units = attention_out_units
@@ -541,10 +566,13 @@ class ExtendedDecoder(tf.layers.Layer):
         assert attention_fn is not None
 
         if speaker_embed is not None:
+            # ToDo: support dtype arg for MultiSpeakerPreNet
             prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
+                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference,
+                              dtype=self.dtype))
         else:
-            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
+            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference,
+                                    dtype=self.dtype)
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source)[0]
@@ -553,18 +581,23 @@ class ExtendedDecoder(tf.layers.Layer):
                                                       is_training,
                                                       zoneout_factor_cell=self.zoneout_factor_cell,
                                                       zoneout_factor_output=self.zoneout_factor_output,
-                                                      lstm_impl=self._lstm_impl),
+                                                      lstm_impl=self._lstm_impl,
+                                                      dtype=self.dtype),
                                       prenets,
-                                      attention_mechanism)
+                                      attention_mechanism,
+                                      dtype=self.dtype)
         decoder_cell = DecoderRNNV1(self.decoder_out_units,
-                                    attention_cell) if self.decoder_version == "v1" else DecoderRNNV2(
+                                    attention_cell,
+                                    dtype=self.dtype) if self.decoder_version == "v1" else DecoderRNNV2(
             self.decoder_out_units,
             attention_cell,
             is_training,
             zoneout_factor_cell=self.zoneout_factor_cell,
             zoneout_factor_output=self.zoneout_factor_output,
-            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
-        output_and_done_cell = OutputAndStopTokenWrapper(decoder_cell, self.num_mels * self.outputs_per_step)
+            lstm_impl=self._lstm_impl,
+            dtype=self.dtype) if self.decoder_version == "v2" else None
+        output_and_done_cell = OutputAndStopTokenWrapper(decoder_cell, self.num_mels * self.outputs_per_step,
+                                                         dtype=self.dtype)
 
         decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=source.dtype)
 
@@ -580,7 +613,8 @@ class ExtendedDecoder(tf.layers.Layer):
             else StopTokenBasedInferenceHelper(batch_size,
                                                self.num_mels,
                                                self.outputs_per_step,
-                                               n_feed_frame=self.n_feed_frame)
+                                               n_feed_frame=self.n_feed_frame,
+                                               dtype=source.dtype)
 
         ((decoder_outputs, stop_token), _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
             BasicDecoder(output_and_done_cell, helper, decoder_initial_state), maximum_iterations=self.max_iters)
@@ -655,7 +689,8 @@ class RNNTransformer:
                  n_feed_frame,
                  max_iters,
                  batch_size,
-                 dtype):
+                 dtype,
+                 output_dtype):
         self._is_training = is_training
         self.decoder_cell = decoder_cell
         self.decoder_initial_state = decoder_initial_state
@@ -666,14 +701,16 @@ class RNNTransformer:
         self.max_iters = max_iters
         self._batch_size = batch_size
         self._dtype = dtype
+        self._output_dtype = output_dtype
 
         self.transformers = [
-            SelfAttentionTransformer(is_training, self_attention_out_units,
-                                     self_attention_transformer_num_conv_layers,
-                                     self_attention_transformer_kernel_size,
-                                     self_attention_out_units,
-                                     self_attention_num_heads,
-                                     self_attention_drop_rate, use_subsequent_mask=True) for i in
+            SelfAttentionTransformer(is_training,
+                                     out_units=self_attention_out_units,
+                                     self_attention_out_units=self_attention_out_units,
+                                     self_attention_num_heads=self_attention_num_heads,
+                                     self_attention_drop_rate=self_attention_drop_rate,
+                                     use_subsequent_mask=True,
+                                     dtype=dtype) for i in
             range(1, self_attention_num_hop + 1)]
 
         # at inference time, outputs are evaluated within dynamic_decode (dynamic_decode has "decoder" scope)
@@ -700,7 +737,8 @@ class RNNTransformer:
             else StopTokenBasedInferenceHelper(self._batch_size,
                                                self.num_mels,
                                                self.outputs_per_step,
-                                               n_feed_frame=self.n_feed_frame)
+                                               n_feed_frame=self.n_feed_frame,
+                                               dtype=self._output_dtype)
 
         if is_training:
             (decoder_outputs, _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
@@ -729,7 +767,7 @@ class RNNTransformer:
                                                                         self.out_projection,
                                                                         self.stop_token_projection)
 
-            decoder_initial_state = output_and_done_cell.zero_state(self._batch_size, dtype=self._dtype)
+            decoder_initial_state = output_and_done_cell.zero_state(self._batch_size, dtype=self._output_dtype)
 
             ((decoder_outputs, stop_token), _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
                 BasicDecoder(output_and_done_cell, helper, decoder_initial_state),
@@ -755,7 +793,8 @@ class MgcLf0RNNTransformer:
                  n_feed_frame,
                  max_iters,
                  batch_size,
-                 dtype):
+                 dtype,
+                 output_dtype):
         self._is_training = is_training
         self.decoder_cell = decoder_cell
         self.decoder_initial_state = decoder_initial_state
@@ -768,14 +807,16 @@ class MgcLf0RNNTransformer:
         self.max_iters = max_iters
         self._batch_size = batch_size
         self._dtype = dtype
+        self._output_dtype = output_dtype
 
         self.transformers = [
-            SelfAttentionTransformer(is_training, self_attention_out_units,
-                                     self_attention_transformer_num_conv_layers,
-                                     self_attention_transformer_kernel_size,
-                                     self_attention_out_units,
-                                     self_attention_num_heads,
-                                     self_attention_drop_rate, use_subsequent_mask=True) for i in
+            SelfAttentionTransformer(is_training,
+                                     out_units=self_attention_out_units,
+                                     self_attention_out_units=self_attention_out_units,
+                                     self_attention_num_heads=self_attention_num_heads,
+                                     self_attention_drop_rate=self_attention_drop_rate,
+                                     use_subsequent_mask=True,
+                                     dtype=dtype) for i in
             range(1, self_attention_num_hop + 1)]
 
         # at inference time, outputs are evaluated within dynamic_decode (dynamic_decode has "decoder" scope)
@@ -811,7 +852,8 @@ class MgcLf0RNNTransformer:
                                                      self.num_mgcs,
                                                      self.num_lf0s,
                                                      self.outputs_per_step,
-                                                     n_feed_frame=self.n_feed_frame)
+                                                     n_feed_frame=self.n_feed_frame,
+                                                     dtype=self._output_dtype)
 
         if is_training:
             (decoder_outputs, _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
@@ -844,7 +886,7 @@ class MgcLf0RNNTransformer:
                                                                               self.lf0_out_projection,
                                                                               self.stop_token_projection)
 
-            decoder_initial_state = output_and_done_cell.zero_state(self._batch_size, dtype=self._dtype)
+            decoder_initial_state = output_and_done_cell.zero_state(self._batch_size, dtype=self._output_dtype)
 
             ((decoder_mgc_outputs, decoder_lf0_outputs, stop_token),
              _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
@@ -876,8 +918,8 @@ class TransformerDecoder(tf.layers.Layer):
                  self_attention_transformer_kernel_size=5,
                  self_attention_drop_rate=0.05,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(TransformerDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(TransformerDecoder, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_out_units = attention_out_units
@@ -909,10 +951,13 @@ class TransformerDecoder(tf.layers.Layer):
         assert attention_fn is not None
 
         if speaker_embed is not None:
+            # ToDo: support dtype arg for MultiSpeakerPreNet
             prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
-                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
+                       PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference,
+                              dtype=self.dtype))
         else:
-            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
+            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference,
+                                    dtype=self.dtype)
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source)[0]
@@ -921,17 +966,21 @@ class TransformerDecoder(tf.layers.Layer):
                                                       is_training,
                                                       self.zoneout_factor_cell,
                                                       self.zoneout_factor_output,
-                                                      lstm_impl=self._lstm_impl),
+                                                      lstm_impl=self._lstm_impl,
+                                                      dtype=self.dtype),
                                       prenets,
-                                      attention_mechanism)
+                                      attention_mechanism,
+                                      dtype=self.dtype)
         decoder_cell = DecoderRNNV1(self.decoder_out_units,
-                                    attention_cell) if self.decoder_version == "v1" else DecoderRNNV2(
+                                    attention_cell,
+                                    dtype=self.dtype) if self.decoder_version == "v1" else DecoderRNNV2(
             self.decoder_out_units,
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
             self.zoneout_factor_output,
-            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
+            lstm_impl=self._lstm_impl,
+            dtype=self.dtype) if self.decoder_version == "v2" else None
 
         decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=source.dtype)
 
@@ -947,6 +996,7 @@ class TransformerDecoder(tf.layers.Layer):
                                          self.n_feed_frame,
                                          self.max_iters,
                                          batch_size,
+                                         self.dtype,
                                          source.dtype)
 
         decoder_outputs, stop_token, final_decoder_state = rnn_transformer(target, is_training=is_training,
@@ -1005,8 +1055,8 @@ class DualSourceDecoder(tf.layers.Layer):
                  zoneout_factor_cell=0.0,
                  zoneout_factor_output=0.0,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(DualSourceDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(DualSourceDecoder, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
@@ -1038,10 +1088,12 @@ class DualSourceDecoder(tf.layers.Layer):
         source1, source2 = sources
 
         if speaker_embed is not None:
+            # ToDo: support dtype arg for MultiSpeakerPreNet
             prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
                        PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
+            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference,
+                                    dtype=self.dtype)
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
@@ -1051,19 +1103,24 @@ class DualSourceDecoder(tf.layers.Layer):
                                                                 is_training,
                                                                 self.zoneout_factor_cell,
                                                                 self.zoneout_factor_output,
-                                                                lstm_impl=self._lstm_impl),
+                                                                lstm_impl=self._lstm_impl,
+                                                                dtype=self.dtype),
                                                 prenets,
                                                 attention_mechanism1,
-                                                attention_mechanism2)
+                                                attention_mechanism2,
+                                                dtype=self.dtype)
         decoder_cell = DecoderRNNV1(self.decoder_out_units,
-                                    attention_cell) if self.decoder_version == "v1" else DecoderRNNV2(
+                                    attention_cell,
+                                    dtype=self.dtype) if self.decoder_version == "v1" else DecoderRNNV2(
             self.decoder_out_units,
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
             self.zoneout_factor_output,
-            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
-        output_and_done_cell = OutputAndStopTokenWrapper(decoder_cell, self.num_mels * self.outputs_per_step)
+            lstm_impl=self._lstm_impl,
+            dtype=self.dtype) if self.decoder_version == "v2" else None
+        output_and_done_cell = OutputAndStopTokenWrapper(decoder_cell, self.num_mels * self.outputs_per_step,
+                                                         dtype=self.dtype)
 
         decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=source1.dtype)
 
@@ -1079,7 +1136,8 @@ class DualSourceDecoder(tf.layers.Layer):
             else StopTokenBasedInferenceHelper(batch_size,
                                                self.num_mels,
                                                self.outputs_per_step,
-                                               n_feed_frame=self.n_feed_frame)
+                                               n_feed_frame=self.n_feed_frame,
+                                               dtype=source1.dtype)
 
         ((decoder_outputs, stop_token), _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
             BasicDecoder(output_and_done_cell, helper, decoder_initial_state), maximum_iterations=self.max_iters)
@@ -1169,8 +1227,8 @@ class MgcLf0Decoder(tf.layers.Layer):
                  zoneout_factor_cell=0.0,
                  zoneout_factor_output=0.0,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(MgcLf0Decoder, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(MgcLf0Decoder, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
@@ -1180,7 +1238,7 @@ class MgcLf0Decoder(tf.layers.Layer):
         self.num_lf0s = num_lf0s
         self.outputs_per_step = outputs_per_step
         self.max_iters = max_iters
-        self.stop_token_fc = tf.layers.Dense(1)
+        self.stop_token_fc = tf.layers.Dense(1, dtype=dtype)
         self.n_feed_frame = n_feed_frame
         self.zoneout_factor_cell = zoneout_factor_cell
         self.zoneout_factor_output = zoneout_factor_output
@@ -1198,14 +1256,17 @@ class MgcLf0Decoder(tf.layers.Layer):
         assert attention_fn is not None
 
         if speaker_embed is not None:
+            # ToDo: support dtype arg for MultiSpeakerPreNet
             mgc_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
                            PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
             lf0_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
                            PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
+            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference,
+                                        dtype=self.dtype)
                                  for out_unit in self._prenet_out_units])
-            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
+            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference,
+                                        dtype=self.dtype)
                                  for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source)[0]
@@ -1214,21 +1275,25 @@ class MgcLf0Decoder(tf.layers.Layer):
                                                             is_training,
                                                             self.zoneout_factor_cell,
                                                             self.zoneout_factor_output,
-                                                            lstm_impl=self._lstm_impl),
+                                                            lstm_impl=self._lstm_impl,
+                                                            dtype=self.dtype),
                                             mgc_prenets,
                                             lf0_prenets,
                                             attention_mechanism)
         decoder_cell = DecoderRNNV1(self.decoder_out_units,
-                                    attention_cell) if self.decoder_version == "v1" else DecoderRNNV2(
+                                    attention_cell,
+                                    dtype=self.dtype) if self.decoder_version == "v1" else DecoderRNNV2(
             self.decoder_out_units,
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
             self.zoneout_factor_output,
-            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
+            lstm_impl=self._lstm_impl,
+            dtype=self.dtype) if self.decoder_version == "v2" else None
         output_and_done_cell = OutputMgcLf0AndStopTokenWrapper(decoder_cell,
                                                                self.num_mgcs * self.outputs_per_step,
-                                                               self.num_lf0s * self.outputs_per_step)
+                                                               self.num_lf0s * self.outputs_per_step,
+                                                               dtype=self.dtype)
 
         decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=source.dtype)
 
@@ -1249,7 +1314,8 @@ class MgcLf0Decoder(tf.layers.Layer):
                                                      self.num_mgcs,
                                                      self.num_lf0s,
                                                      self.outputs_per_step,
-                                                     n_feed_frame=self.n_feed_frame)
+                                                     n_feed_frame=self.n_feed_frame,
+                                                     dtype=source.dtype)
 
         ((decoder_mgc_outputs, decoder_lf0_outputs, stop_token),
          _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
@@ -1275,8 +1341,8 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
                  zoneout_factor_cell=0.0,
                  zoneout_factor_output=0.0,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(MgcLf0DualSourceDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(MgcLf0DualSourceDecoder, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
@@ -1308,14 +1374,17 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
         source1, source2 = sources
 
         if speaker_embed is not None:
+            # ToDo: support dtype arg for MultiSpeakerPreNet
             mgc_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
                            PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
             lf0_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
                            PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
+            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference,
+                                        dtype=self.dtype)
                                  for out_unit in self._prenet_out_units])
-            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
+            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference,
+                                        dtype=self.dtype)
                                  for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
@@ -1325,22 +1394,26 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
                                                                       is_training,
                                                                       self.zoneout_factor_cell,
                                                                       self.zoneout_factor_output,
-                                                                      lstm_impl=self._lstm_impl),
+                                                                      lstm_impl=self._lstm_impl,
+                                                                      dtype=self.dtype),
                                                       mgc_prenets,
                                                       lf0_prenets,
                                                       attention_mechanism1,
                                                       attention_mechanism2)
         decoder_cell = DecoderRNNV1(self.decoder_out_units,
-                                    attention_cell) if self.decoder_version == "v1" else DecoderRNNV2(
+                                    attention_cell,
+                                    dtype=self.dtype) if self.decoder_version == "v1" else DecoderRNNV2(
             self.decoder_out_units,
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
             self.zoneout_factor_output,
-            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
+            lstm_impl=self._lstm_impl,
+            dtype=self.dtype) if self.decoder_version == "v2" else None
         output_and_done_cell = OutputMgcLf0AndStopTokenWrapper(decoder_cell,
                                                                self.num_mgcs * self.outputs_per_step,
-                                                               self.num_lf0s * self.outputs_per_step)
+                                                               self.num_lf0s * self.outputs_per_step,
+                                                               dtype=self.dtype)
 
         decoder_initial_state = output_and_done_cell.zero_state(batch_size, dtype=source1.dtype)
 
@@ -1361,7 +1434,8 @@ class MgcLf0DualSourceDecoder(tf.layers.Layer):
                                                      self.num_mgcs,
                                                      self.num_lf0s,
                                                      self.outputs_per_step,
-                                                     n_feed_frame=self.n_feed_frame)
+                                                     n_feed_frame=self.n_feed_frame,
+                                                     dtype=source1.dtype)
 
         ((decoder_mgc_outputs, decoder_lf0_outputs, stop_token),
          _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
@@ -1391,8 +1465,8 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
                  self_attention_transformer_kernel_size=5,
                  self_attention_drop_rate=0.05,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(DualSourceTransformerDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(DualSourceTransformerDecoder, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
@@ -1401,7 +1475,7 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
         self.num_mels = num_mels
         self.outputs_per_step = outputs_per_step
         self.max_iters = max_iters
-        self.stop_token_fc = tf.layers.Dense(1)
+        self.stop_token_fc = tf.layers.Dense(1, dtype=dtype)
         self.n_feed_frame = n_feed_frame
         self.zoneout_factor_cell = zoneout_factor_cell
         self.zoneout_factor_output = zoneout_factor_output
@@ -1432,7 +1506,8 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
             prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
                        PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
+            prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference,
+                                    dtype=self.dtype)
                              for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
@@ -1442,18 +1517,21 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
                                                                 is_training,
                                                                 self.zoneout_factor_cell,
                                                                 self.zoneout_factor_output,
-                                                                lstm_impl=self._lstm_impl),
+                                                                lstm_impl=self._lstm_impl,
+                                                                dtype=self.dtype),
                                                 prenets,
                                                 attention_mechanism1,
                                                 attention_mechanism2)
         decoder_cell = DecoderRNNV1(self.decoder_out_units,
-                                    attention_cell) if self.decoder_version == "v1" else DecoderRNNV2(
+                                    attention_cell,
+                                    dtype=self.dtype) if self.decoder_version == "v1" else DecoderRNNV2(
             self.decoder_out_units,
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
             self.zoneout_factor_output,
-            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
+            lstm_impl=self._lstm_impl,
+            dtype=self.dtype) if self.decoder_version == "v2" else None
 
         decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=source1.dtype)
 
@@ -1469,6 +1547,7 @@ class DualSourceTransformerDecoder(tf.layers.Layer):
                                          self.n_feed_frame,
                                          self.max_iters,
                                          batch_size,
+                                         self.dtype,
                                          source1.dtype)
 
         decoder_outputs, stop_token, final_decoder_state = rnn_transformer(target, is_training=is_training,
@@ -1500,8 +1579,8 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
                  self_attention_transformer_kernel_size=5,
                  self_attention_drop_rate=0.05,
                  lstm_impl=LSTMImpl.LSTMCell,
-                 trainable=True, name=None, **kwargs):
-        super(DualSourceMgcLf0TransformerDecoder, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(DualSourceMgcLf0TransformerDecoder, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self._prenet_out_units = prenet_out_units
         self._drop_rate = drop_rate
         self.attention_rnn_out_units = attention_rnn_out_units
@@ -1539,14 +1618,17 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
         source1, source2 = sources
 
         if speaker_embed is not None:
+            # ToDo: support dtype arg for MultiSpeakerPreNet
             mgc_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
                            PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
             lf0_prenets = (MultiSpeakerPreNet(self._prenet_out_units[0], speaker_embed, is_training, self._drop_rate),
                            PreNet(self._prenet_out_units[1], is_training, self._drop_rate, apply_dropout_on_inference))
         else:
-            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
+            mgc_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference,
+                                        dtype=self.dtype)
                                  for out_unit in self._prenet_out_units])
-            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference)
+            lf0_prenets = tuple([PreNet(out_unit, is_training, self._drop_rate, apply_dropout_on_inference,
+                                        dtype=self.dtype)
                                  for out_unit in self._prenet_out_units])
 
         batch_size = tf.shape(source1)[0]
@@ -1556,19 +1638,22 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
                                                                       is_training,
                                                                       self.zoneout_factor_cell,
                                                                       self.zoneout_factor_output,
-                                                                      lstm_impl=self._lstm_impl),
+                                                                      lstm_impl=self._lstm_impl,
+                                                                      dtype=self.dtype),
                                                       mgc_prenets,
                                                       lf0_prenets,
                                                       attention_mechanism1,
                                                       attention_mechanism2)
         decoder_cell = DecoderRNNV1(self.decoder_out_units,
-                                    attention_cell) if self.decoder_version == "v1" else DecoderRNNV2(
+                                    attention_cell,
+                                    dtype=self.dtype) if self.decoder_version == "v1" else DecoderRNNV2(
             self.decoder_out_units,
             attention_cell,
             is_training,
             self.zoneout_factor_cell,
             self.zoneout_factor_output,
-            lstm_impl=self._lstm_impl) if self.decoder_version == "v2" else None
+            lstm_impl=self._lstm_impl,
+            dtype=self.dtype) if self.decoder_version == "v2" else None
 
         decoder_initial_state = decoder_cell.zero_state(batch_size, dtype=source1.dtype)
 
@@ -1583,7 +1668,9 @@ class DualSourceMgcLf0TransformerDecoder(tf.layers.Layer):
                                                self.num_lf0s,
                                                self.outputs_per_step,
                                                self.n_feed_frame,
-                                               self.max_iters)
+                                               self.max_iters,
+                                               self.dtype,
+                                               source1.dtype)
 
         decoder_mgc_outputs, decoder_lf0_outputs, stop_token, final_decoder_state = rnn_transformer(target,
                                                                                                     is_training=is_training,

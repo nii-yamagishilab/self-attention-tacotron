@@ -60,7 +60,8 @@ class TransformerTest(tf.test.TestCase):
                                          n_feed_frame=r,
                                          max_iters=100,
                                          batch_size=batch_size,
-                                         dtype=target.dtype)
+                                         dtype=target.dtype,
+                                         output_dtype=target.dtype)
 
             training_output, training_stop_token, training_state = transformer(target, is_training=True,
                                                                                is_validation=False,
@@ -106,7 +107,8 @@ class TransformerTest(tf.test.TestCase):
                                                n_feed_frame=r,
                                                max_iters=100,
                                                batch_size=batch_size,
-                                               dtype=target.dtype)
+                                               dtype=target.dtype,
+                                               output_dtype=target.dtype)
 
             training_output1, training_output2, training_stop_token, training_state = transformer((target, target),
                                                                                                   is_training=True,

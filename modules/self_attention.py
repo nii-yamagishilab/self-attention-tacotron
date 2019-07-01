@@ -90,8 +90,8 @@ class MultiHeadAttention(tf.layers.Layer):
 
     def __init__(self, model_dim, num_heads, drop_rate, is_training,
                  use_padding_mask=False, use_subsequent_mask=False,
-                 trainable=True, name=None, **kwargs):
-        super(MultiHeadAttention, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(MultiHeadAttention, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         assert model_dim % num_heads == 0
         self.num_heads = num_heads
         self.head_dim = model_dim // num_heads
@@ -99,10 +99,11 @@ class MultiHeadAttention(tf.layers.Layer):
         self.is_training = is_training
         self.use_padding_mask = use_padding_mask
         self.use_subsequent_mask = use_subsequent_mask
-        self.key_projection = tf.layers.Dense(model_dim)
-        self.value_projection = tf.layers.Dense(model_dim)
-        self.query_projection = tf.layers.Dense(model_dim)
-        self.output_projection = tf.layers.Dense(model_dim)
+        # ToDo: remove bias from projections
+        self.key_projection = tf.layers.Dense(model_dim, dtype=dtype)
+        self.value_projection = tf.layers.Dense(model_dim, dtype=dtype)
+        self.query_projection = tf.layers.Dense(model_dim, dtype=dtype)
+        self.output_projection = tf.layers.Dense(model_dim, dtype=dtype)
 
     def call(self, inputs, memory_sequence_length=None):
         key, value, query = inputs
@@ -131,11 +132,12 @@ class SelfAttention(tf.layers.Layer):
 
     def __init__(self, model_dim, num_heads, drop_rate, is_training,
                  use_padding_mask=False, use_subsequent_mask=False,
-                 trainable=True, name=None, **kwargs):
-        super(SelfAttention, self).__init__(name=name, trainable=trainable, **kwargs)
+                 trainable=True, name=None, dtype=None, **kwargs):
+        super(SelfAttention, self).__init__(trainable=trainable, name=name, dtype=dtype, **kwargs)
         self.attention = MultiHeadAttention(model_dim, num_heads, drop_rate, is_training,
                                             use_padding_mask=use_padding_mask,
-                                            use_subsequent_mask=use_subsequent_mask)
+                                            use_subsequent_mask=use_subsequent_mask,
+                                            dtype=dtype)
 
     def call(self, inputs, memory_sequence_length=None):
         key, value, query = (inputs, inputs, inputs)
