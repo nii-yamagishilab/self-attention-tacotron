@@ -1021,7 +1021,7 @@ class DualSourceAttentionRNN(RNNCell):
             alignment_history=True,
             output_attention=False)
         prenet_cell = DecoderPreNetWrapper(attention_cell, prenets)
-        concat_cell = ConcatOutputAndAttentionWrapper(attention_cell)
+        concat_cell = ConcatOutputAndAttentionWrapper(prenet_cell)
         self._cell = concat_cell
 
     @property
