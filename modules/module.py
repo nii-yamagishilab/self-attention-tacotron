@@ -1016,12 +1016,12 @@ class DualSourceAttentionRNN(RNNCell):
                  trainable=True, name=None, **kwargs):
         super(DualSourceAttentionRNN, self).__init__(name=name, trainable=trainable, **kwargs)
         attention_cell = AttentionWrapper(
-            DecoderPreNetWrapper(cell, prenets),
+            cell,
             [attention_mechanism1, attention_mechanism2],
-            cell_input_fn=(lambda inputs, attention: inputs),  # Disable concatenation of inputs and context
             alignment_history=True,
             output_attention=False)
-        concat_cell = ConcatOutputAndAttentionWrapper(attention_cell)
+        prenet_cell = DecoderPreNetWrapper(attention_cell, prenets)
+        concat_cell = ConcatOutputAndAttentionWrapper(prenet_cell)
         self._cell = concat_cell
 
     @property
@@ -1153,12 +1153,12 @@ class MgcLf0AttentionRNN(RNNCell):
                  trainable=True, name=None, **kwargs):
         super(MgcLf0AttentionRNN, self).__init__(name=name, trainable=trainable, **kwargs)
         attention_cell = AttentionWrapper(
-            DecoderMgcLf0PreNetWrapper(cell, mgc_prenets, lf0_prenets),
+            cell,
             attention_mechanism,
-            cell_input_fn=(lambda inputs, attention: inputs),  # Disable concatenation of inputs and context
             alignment_history=True,
             output_attention=False)
-        concat_cell = ConcatOutputAndAttentionWrapper(attention_cell)
+        prenet_cell = DecoderMgcLf0PreNetWrapper(attention_cell, mgc_prenets, lf0_prenets)
+        concat_cell = ConcatOutputAndAttentionWrapper(prenet_cell)
         self._cell = concat_cell
 
     @property
@@ -1187,12 +1187,12 @@ class DualSourceMgcLf0AttentionRNN(RNNCell):
                  trainable=True, name=None, **kwargs):
         super(DualSourceMgcLf0AttentionRNN, self).__init__(name=name, trainable=trainable, **kwargs)
         attention_cell = AttentionWrapper(
-            DecoderMgcLf0PreNetWrapper(cell, mgc_prenets, lf0_prenets),
+            cell,
             [attention_mechanism1, attention_mechanism2],
-            cell_input_fn=(lambda inputs, attention: inputs),  # Disable concatenation of inputs and alignment
             alignment_history=True,
             output_attention=False)
-        concat_cell = ConcatOutputAndAttentionWrapper(attention_cell)
+        prenet_cell = DecoderMgcLf0PreNetWrapper(attention_cell, mgc_prenets, lf0_prenets)
+        concat_cell = ConcatOutputAndAttentionWrapper(prenet_cell)
         self._cell = concat_cell
 
     @property
