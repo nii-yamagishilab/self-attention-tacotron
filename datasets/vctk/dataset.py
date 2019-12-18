@@ -21,7 +21,10 @@ class PreprocessedSourceData(namedtuple("PreprocessedSourceData",
                                          "speaker_id",
                                          "age",
                                          "gender",
-                                         "text", ])):
+                                         "text",
+                                         "phone",
+                                         "phone_length",
+                                         "phone_txt"])):
     pass
 
 
@@ -68,6 +71,9 @@ def parse_preprocessed_source_data(proto):
         'age': tf.FixedLenFeature((), tf.int64),
         'gender': tf.FixedLenFeature((), tf.int64),
         'text': tf.FixedLenFeature((), tf.string),
+        'phone': tf.FixedLenFeature((), tf.string),
+        'phone_length': tf.FixedLenFeature((), tf.int64),
+        'phone_txt': tf.FixedLenFeature((), tf.string),
     }
     parsed_features = tf.parse_single_example(proto, features)
     return parsed_features
@@ -75,6 +81,7 @@ def parse_preprocessed_source_data(proto):
 
 def decode_preprocessed_source_data(parsed):
     source = tf.decode_raw(parsed['source'], tf.int64)
+    phone = tf.decode_raw(parsed['phone'], tf.int64)
     return PreprocessedSourceData(
         id=parsed["id"],
         key=parsed["key"],
@@ -84,7 +91,9 @@ def decode_preprocessed_source_data(parsed):
         age=parsed["age"],
         gender=parsed["gender"],
         text=parsed["text"],
-    )
+        phone=phone,
+        phone_length=parsed["phone_length"],
+        phone_txt=parsed["phone_txt"])
 
 
 class DatasetSource:
@@ -126,16 +135,17 @@ class DatasetSource:
 
     def prepare_and_zip(self):
         zipped = tf.data.Dataset.zip(
-            (self._prepare_source(self.source), self._prepare_target(self.target, self.hparams)))
+            (self._prepare_source(self.source, self.hparams), self._prepare_target(self.target, self.hparams)))
         return ZippedDataset(zipped, self.hparams)
 
     @staticmethod
-    def _prepare_source(source):
+    def _prepare_source(source, hparams):
         def convert(inputs: PreprocessedSourceData):
-            source = inputs.source
-            source_length = inputs.source_length
+            source = inputs.phone if hparams.source == 'phone' else inputs.source
+            source_length = inputs.phone_length if hparams.source == 'phone' else inputs.source_length
+            text = inputs.phone_txt if hparams.source == 'phone' else inputs.text
             return SourceData(inputs.id, inputs.key, source, source_length, inputs.speaker_id, inputs.age,
-                              inputs.gender, inputs.text)
+                              inputs.gender, text)
 
         return DatasetSource._decode_source(source).map(lambda inputs: convert(inputs))
 
