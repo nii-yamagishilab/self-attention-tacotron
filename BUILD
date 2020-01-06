@@ -10,7 +10,7 @@ py_binary(
         "train.py",
     ],
     srcs_version = "PY3ONLY",
-    default_python_version = "PY3",
+    python_version = "PY3",
     deps = [
         "@tacotron2//:tacotron2",
     ],
@@ -22,7 +22,7 @@ py_binary(
         "predict_mel.py",
     ],
     srcs_version = "PY3ONLY",
-    default_python_version = "PY3",
+    python_version = "PY3",
     deps = [
         "@tacotron2//:tacotron2",
     ],
@@ -67,7 +67,7 @@ py_test(
     name = "transformer_test",
     srcs = ["modules/transformer_test.py"],
     srcs_version = "PY3ONLY",
-    default_python_version = "PY3",
+    python_version = "PY3",
     deps = [
         ":modules",
         "@tacotron2//:tacotron2",
@@ -80,7 +80,7 @@ py_binary(
         "preprocess_vctk.py",
     ],
     srcs_version = "PY3ONLY",
-    default_python_version = "PY3",
+    python_version = "PY3",
     deps = [
         ":preprocess",
     ],
@@ -92,7 +92,7 @@ py_binary(
         "preprocess_ljspeech.py",
     ],
     srcs_version = "PY3ONLY",
-    default_python_version = "PY3",
+    python_version = "PY3",
     deps = [
         ":preprocess",
     ],
@@ -104,7 +104,7 @@ py_binary(
         "preprocess_ljspeech_wavenet.py",
     ],
     srcs_version = "PY3ONLY",
-    default_python_version = "PY3",
+    python_version = "PY3",
     deps = [
         ":preprocess",
     ],
