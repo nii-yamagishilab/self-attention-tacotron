@@ -1,8 +1,8 @@
-# ==============================================================================
-# Copyright (c) 2018, Yamagishi Laboratory, National Institute of Informatics
+# ================================================================================
+# Copyright (c) 2018-2020, Yamagishi Laboratory, National Institute of Informatics
 # Author: Yusuke Yasuda (yasuda@nii.ac.jp)
 # All rights reserved.
-# ==============================================================================
+# ================================================================================
 """Trainining script for seq2seq text-to-speech synthesis model.
 Usage: train.py [options]
 
@@ -72,7 +72,12 @@ def train_and_evaluate(hparams, model_dir, train_source_files, train_target_file
                                         keep_checkpoint_max=hparams.keep_checkpoint_max,
                                         log_step_count_steps=hparams.log_step_count_steps,
                                         train_distribute=distribution)
-    estimator = tacotron_model_factory(hparams, model_dir, run_config)
+
+    ws = tf.estimator.WarmStartSettings(
+        ckpt_to_initialize_from=hparams.ckpt_to_initialize_from,
+        vars_to_warm_start=hparams.vars_to_warm_start) if hparams.warm_start else None
+
+    estimator = tacotron_model_factory(hparams, model_dir, run_config, ws)
 
     train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn)
     eval_spec = tf.estimator.EvalSpec(input_fn=eval_input_fn,

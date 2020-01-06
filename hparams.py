@@ -172,6 +172,10 @@ hparams = tf.contrib.training.HParams(
     logfile="log.txt",
     record_profile=False,
     profile_steps=50,
+    ## Warm starting
+    warm_start=False,
+    ckpt_to_initialize_from="",
+    vars_to_warm_start=[".*"],
 
     # Eval:
     max_iters=500,
