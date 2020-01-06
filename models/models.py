@@ -23,6 +23,11 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
 
             embedding = Embedding(params.num_symbols, embedding_dim=params.embedding_dim)
 
+            if params.use_accent_type:
+                accent_embedding = Embedding(params.num_accent_type,
+                                             embedding_dim=params.accent_type_embedding_dim,
+                                             index_offset=params.accent_type_offset)
+
             encoder = encoder_factory(params, is_training)
 
             decoder = decoder_factory(params)
