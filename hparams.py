@@ -121,9 +121,16 @@ hparams = tf.contrib.training.HParams(
 
     ## Speaker Embedding
     use_speaker_embedding=False,
+    use_xvector=False,  # use external embedding
+    speaker_embedding_projection_out_dim=-1, # (optional) project speaker embedding to a different dimension before using it
+    embedding_file="",
     num_speakers=1,
     speaker_embedding_dim=16,
     speaker_embedding_offset=0,
+    speaker_for_synthesis=-1,
+    speaker_embedd_to_prenet=True,   # default (original) speaker embedding location -- prenet to the decoder.
+    speaker_embedd_to_decoder=False, # (optional) input speaker embedding to decoder by concatenating spk embedding with encoder outputs
+    speaker_embedd_to_postnet=False, # (optional) input speaker embedding to each convolution layers of the postnet
 
     ## Post net
     post_net_cbhg_out_units=256,
