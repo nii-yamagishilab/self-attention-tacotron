@@ -121,7 +121,7 @@ hparams = tf.contrib.training.HParams(
 
     ## Speaker Embedding
     use_speaker_embedding=False,
-    use_xvector=False,  # use external embedding
+    use_external_speaker_embedding=False,  # use speaker embeddings from an external file
     speaker_embedding_projection_out_dim=-1, # (optional) project speaker embedding to a different dimension before using it
     embedding_file="",
     num_speakers=1,

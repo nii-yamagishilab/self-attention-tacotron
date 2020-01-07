@@ -305,14 +305,14 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
             assert params.decoder in ["DualSourceDecoder", "DualSourceTransformerDecoder"]
             decoder = decoder_factory(params)
 
-            ## make sure that only one of (xvector, speaker_embedding) has been chosen
-            assert not (params.use_speaker_embedding and params.use_xvector)
+            ## make sure that only one of (external_speaker_embedding, speaker_embedding) has been chosen
+            assert not (params.use_speaker_embedding and params.use_external_speaker_embedding)
             
             if params.use_speaker_embedding:
                 speaker_embedding = Embedding(params.num_speakers,
                                               embedding_dim=params.speaker_embedding_dim,
                                               index_offset=params.speaker_embedding_offset)
-            elif params.use_xvector:
+            elif params.use_external_speaker_embedding:
                 speaker_embedding = ExternalEmbedding(params.embedding_file, params.num_speakers,
                                                       embedding_dim=params.speaker_embedding_dim,
                                                       index_offset=params.speaker_embedding_offset)
@@ -331,7 +331,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 speaker_embedding_output = speaker_embedding(x)
             else:  ## default is to just use the speaker ID associated with the test utterance
                 speaker_embedding_output = speaker_embedding(
-                    features.speaker_id) if params.use_speaker_embedding or params.use_xvector else None
+                    features.speaker_id) if params.use_speaker_embedding or params.use_external_speaker_embedding else None
 
             ## resize speaker embedding with a projection layer
             if params.speaker_embedding_projection_out_dim > -1:
