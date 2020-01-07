@@ -11,6 +11,8 @@ from modules.regularizers import l2_regularization_loss
 from models.attention_factories import attention_factory, dual_source_attention_factory, \
     force_alignment_attention_factory, \
     force_alignment_dual_source_attention_factory
+from multi_speaker_tacotron.external_embedding import ExternalEmbedding
+from multi_speaker_tacotron.multi_speaker_postnet import MultiSpeakerPostNet
 
 
 class ExtendedTacotronV1Model(tf.estimator.Estimator):
@@ -303,10 +305,17 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
             assert params.decoder in ["DualSourceDecoder", "DualSourceTransformerDecoder"]
             decoder = decoder_factory(params)
 
+            ## make sure that only one of (xvector, speaker_embedding) has been chosen
+            assert not (params.use_speaker_embedding and params.use_xvector)
+            
             if params.use_speaker_embedding:
                 speaker_embedding = Embedding(params.num_speakers,
                                               embedding_dim=params.speaker_embedding_dim,
                                               index_offset=params.speaker_embedding_offset)
+            elif params.use_xvector:
+                speaker_embedding = ExternalEmbedding(params.embedding_file, params.num_speakers,
+                                                      embedding_dim=params.speaker_embedding_dim,
+                                                      index_offset=params.speaker_embedding_offset)
 
             target = labels.mel if (is_training or is_validation) else features.mel
 
@@ -316,13 +325,32 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 input_lengths=features.source_length) if params.use_accent_type else encoder(
                 embedding_output, input_lengths=features.source_length)
 
-            speaker_embedding_output = speaker_embedding(features.speaker_id) if params.use_speaker_embedding else None
+            ## choose a speaker ID to synthesize as
+            x = params.speaker_for_synthesis
+            if x > -1:
+                speaker_embedding_output = speaker_embedding(x)
+            else:  ## default is to just use the speaker ID associated with the test utterance
+                speaker_embedding_output = speaker_embedding(
+                    features.speaker_id) if params.use_speaker_embedding or params.use_xvector else None
 
+            ## resize speaker embedding with a projection layer
+            if params.speaker_embedding_projection_out_dim > -1:
+                resize = tf.layers.Dense(params.speaker_embedding_projection_out_dim, activation=tfnn.relu)
+                speaker_embedding_output = resize(speaker_embedding_output)
+
+            ## concatenate encoder outputs with speaker embedding along the time axis
+            if params.speaker_embedd_to_decoder:
+                expand_speaker_embedding_output = tf.tile(tf.expand_dims(speaker_embedding_output, axis=1),
+                                                          [1, tf.shape(encoder_lstm_output)[1], 1])
+                encoder_lstm_output = tf.concat((encoder_lstm_output, expand_speaker_embedding_output), axis=-1)
+                encoder_self_attention_output = tf.concat(
+                    (encoder_self_attention_output, expand_speaker_embedding_output), axis=-1)
+                
             attention1_fn, attention2_fn = dual_source_attention_factory(params)
             mel_output, stop_token, decoder_state = decoder((encoder_lstm_output, encoder_self_attention_output),
                                                             attention1_fn=attention1_fn,
                                                             attention2_fn=attention2_fn,
-                                                            speaker_embed=speaker_embedding_output,
+                                                            speaker_embed=speaker_embedding_output if params.speaker_embedd_to_prenet else None,
                                                             is_training=is_training,
                                                             is_validation=is_validation or params.use_forced_alignment_mode,
                                                             teacher_forcing=params.use_forced_alignment_mode,
@@ -351,7 +379,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 mel_output, stop_token, decoder_state = decoder((encoder_lstm_output, encoder_self_attention_output),
                                                                 attention1_fn=attention1_fn,
                                                                 attention2_fn=attention2_fn,
-                                                                speaker_embed=speaker_embedding_output,
+                                                                speaker_embed=speaker_embedding_output if params.speaker_embedd_to_prenet else None,
                                                                 is_training=is_training,
                                                                 is_validation=True,
                                                                 teacher_forcing=False,
@@ -375,13 +403,21 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     alignment2 = tf.transpose(decoder_state[0].alignment_history[1].stack(), [1, 2, 0])
                     decoder_self_attention_alignment = []  # ToDo: fill decoder_self_attention_alignment at training time
 
+
             if params.use_postnet_v2:
-                postnet = PostNetV2(out_units=params.num_mels,
-                                    num_postnet_layers=params.num_postnet_v2_layers,
-                                    kernel_size=params.postnet_v2_kernel_size,
-                                    out_channels=params.postnet_v2_out_channels,
-                                    is_training=is_training,
-                                    drop_rate=params.postnet_v2_drop_rate)
+                postnet = MultiSpeakerPostNet(out_units=params.num_mels,
+                                              speaker_embed=speaker_embedding_output,
+                                              num_postnet_layers=params.num_postnet_v2_layers,
+                                              kernel_size=params.postnet_v2_kernel_size,
+                                              out_channels=params.postnet_v2_out_channels,
+                                              is_training=is_training,
+                                              drop_rate=params.postnet_v2_drop_rate) if params.speaker_embedd_to_postnet \
+                    else PostNetV2(out_units=params.num_mels,
+                                   num_postnet_layers=params.num_postnet_v2_layers,
+                                   kernel_size=params.postnet_v2_kernel_size,
+                                   out_channels=params.postnet_v2_out_channels,
+                                   is_training=is_training,
+                                   drop_rate=params.postnet_v2_drop_rate)
 
                 postnet_v2_mel_output = postnet(mel_output)
 
@@ -444,7 +480,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     (encoder_lstm_output, encoder_self_attention_output),
                     attention1_fn=attention1_fn,
                     attention2_fn=attention2_fn,
-                    speaker_embed=speaker_embedding_output,
+                    speaker_embed=speaker_embedding_output if params.speaker_embedd_to_prenet else None,
                     is_training=is_training,
                     is_validation=is_validation,
                     memory_sequence_length=features.source_length,
