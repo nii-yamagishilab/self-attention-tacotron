@@ -23,6 +23,11 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
 
             embedding = Embedding(params.num_symbols, embedding_dim=params.embedding_dim)
 
+            if params.use_accent_type:
+                accent_embedding = Embedding(params.num_accent_type,
+                                             embedding_dim=params.accent_type_embedding_dim,
+                                             index_offset=params.accent_type_offset)
+
             encoder = encoder_factory(params, is_training)
 
             decoder = decoder_factory(params)
@@ -1326,17 +1331,22 @@ def decoder_factory(params):
     return decoder
 
 
-def tacotron_model_factory(hparams, model_dir, run_config):
+def tacotron_model_factory(hparams, model_dir, run_config, warm_start_from=None):
     if hparams.tacotron_model == "MgcLf0TacotronModel":
-        model = MgcLf0TacotronModel(hparams, model_dir, config=run_config)
+        model = MgcLf0TacotronModel(hparams, model_dir, config=run_config,
+                                    warm_start_from=warm_start_from)
     elif hparams.tacotron_model == "DualSourceSelfAttentionMgcLf0TacotronModel":
         model = DualSourceSelfAttentionMgcLf0TacotronModel(hparams, model_dir,
-                                                           config=run_config)
+                                                           config=run_config,
+                                                           warm_start_from=warm_start_from)
     elif hparams.tacotron_model == "DualSourceSelfAttentionTacotronModel":
         model = DualSourceSelfAttentionTacotronModel(hparams, model_dir,
-                                                     config=run_config)
+                                                     config=run_config,
+                                                     warm_start_from=warm_start_from)
     elif hparams.tacotron_model == "ExtendedTacotronV1Model":
-        model = ExtendedTacotronV1Model(hparams, model_dir, config=run_config)
+        model = ExtendedTacotronV1Model(hparams, model_dir,
+                                        config=run_config,
+                                        warm_start_from=warm_start_from)
     else:
         raise ValueError(f"Unknown Tacotron model: {hparams.tacotron_model}")
     return model
