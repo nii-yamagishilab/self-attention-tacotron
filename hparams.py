@@ -37,6 +37,7 @@ hparams = tf.contrib.training.HParams(
     # Dataset
     dataset="vctk.dataset.DatasetSource",  # vctk.dataset.DatasetSource
     num_symbols=256,
+    source="phoneme",  # phone, phoneme
     source_file_extension="source.tfrecord",
     target_file_extension="target.tfrecord",
 
