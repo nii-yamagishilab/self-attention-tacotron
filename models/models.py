@@ -335,7 +335,7 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
 
             ## resize speaker embedding with a projection layer
             if params.speaker_embedding_projection_out_dim > -1:
-                resize = tf.layers.Dense(params.speaker_embedding_projection_out_dim, activation=tfnn.relu)
+                resize = tf.layers.Dense(params.speaker_embedding_projection_out_dim, activation=tf.nn.relu)
                 speaker_embedding_output = resize(speaker_embedding_output)
 
             ## concatenate encoder outputs with speaker embedding along the time axis

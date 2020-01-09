@@ -148,6 +148,9 @@ hparams = tf.contrib.training.HParams(
     postnet_v2_out_channels=512,
     postnet_v2_drop_rate=0.5,
 
+    ## loss
+    spec_loss_type="l1",  # l1 or mse
+
     # Training:
     batch_size=32,
     adam_beta1=0.9,
