@@ -2,6 +2,7 @@ import tensorflow as tf
 from tacotron2.tacotron.modules import Embedding
 from tacotron2.tacotron.tacotron_v2 import PostNetV2, EncoderV2
 from tacotron2.tacotron.hooks import MetricsSaver
+from tacotron2.tacotron.losses import spec_loss, classification_loss, binary_loss
 from modules.module import ZoneoutEncoderV1, ExtendedDecoder, EncoderV1WithAccentType, \
     SelfAttentionCBHGEncoder, DualSourceDecoder, TransformerDecoder, \
     DualSourceTransformerDecoder, SelfAttentionCBHGEncoderWithAccentType, \
@@ -100,9 +101,9 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
             global_step = tf.train.get_global_step()
 
             if mode is not tf.estimator.ModeKeys.PREDICT:
-                mel_loss = self.spec_loss(mel_output, labels.mel,
-                                          labels.spec_loss_mask)
-                done_loss = self.binary_loss(stop_token, labels.done, labels.binary_loss_mask)
+                mel_loss = spec_loss(mel_output, labels.mel,
+                                     labels.spec_loss_mask, params.spec_loss_type)
+                done_loss = binary_loss(stop_token, labels.done, labels.binary_loss_mask)
 
                 blacklist = ["embedding", "bias", "batch_normalization", "output_projection_wrapper/kernel",
                              "lstm_cell",
@@ -111,8 +112,8 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                     tf.trainable_variables(), params.l2_regularization_weight,
                     blacklist) if params.use_l2_regularization else 0
 
-                postnet_v2_mel_loss = self.spec_loss(postnet_v2_mel_output, labels.mel,
-                                                     labels.spec_loss_mask) if params.use_postnet_v2 else 0
+                postnet_v2_mel_loss = spec_loss(postnet_v2_mel_output, labels.mel,
+                                                labels.spec_loss_mask, params.spec_loss_type) if params.use_postnet_v2 else 0
                 loss = mel_loss + done_loss + regularization_loss + postnet_v2_mel_loss
 
             if is_training:
@@ -172,11 +173,11 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
                 if params.use_postnet_v2:
                     postnet_v2_mel_output_with_teacher = postnet(mel_output_with_teacher)
 
-                mel_loss_with_teacher = self.spec_loss(mel_output_with_teacher, labels.mel,
-                                                       labels.spec_loss_mask)
-                done_loss_with_teacher = self.binary_loss(stop_token_with_teacher, labels.done, labels.binary_loss_mask)
-                postnet_v2_mel_loss_with_teacher = self.spec_loss(postnet_v2_mel_output_with_teacher, labels.mel,
-                                                                  labels.spec_loss_mask) if params.use_postnet_v2 else 0
+                mel_loss_with_teacher = spec_loss(mel_output_with_teacher, labels.mel,
+                                                  labels.spec_loss_mask, params.spec_loss_type)
+                done_loss_with_teacher = binary_loss(stop_token_with_teacher, labels.done, labels.binary_loss_mask)
+                postnet_v2_mel_loss_with_teacher = spec_loss(postnet_v2_mel_output_with_teacher, labels.mel,
+                                                             labels.spec_loss_mask, params.spec_loss_type) if params.use_postnet_v2 else 0
                 loss_with_teacher = mel_loss_with_teacher + done_loss_with_teacher + regularization_loss + postnet_v2_mel_loss_with_teacher
 
                 eval_metric_ops = self.get_validation_metrics(mel_loss, done_loss, postnet_v2_mel_loss,
@@ -222,21 +223,6 @@ class ExtendedTacotronV1Model(tf.estimator.Estimator):
         super(ExtendedTacotronV1Model, self).__init__(
             model_fn=model_fn, model_dir=model_dir, config=config,
             params=params, warm_start_from=warm_start_from)
-
-    @staticmethod
-    def spec_loss(y_hat, y, mask, n_priority_freq=None, priority_w=0):
-        l1_loss = tf.abs(y_hat - y)
-
-        # Priority L1 loss
-        if n_priority_freq is not None and priority_w > 0:
-            priority_loss = tf.abs(y_hat[:, :, :n_priority_freq] - y[:, :, :n_priority_freq])
-            l1_loss = (1 - priority_w) * l1_loss + priority_w * priority_loss
-
-        return tf.losses.compute_weighted_loss(l1_loss, weights=tf.expand_dims(mask, axis=2))
-
-    @staticmethod
-    def binary_loss(done_hat, done, mask):
-        return tf.losses.sigmoid_cross_entropy(done, tf.squeeze(done_hat, axis=-1), weights=mask)
 
     @staticmethod
     def learning_rate_decay(init_rate, global_step, step_factor):
@@ -424,9 +410,9 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
             global_step = tf.train.get_global_step()
 
             if mode is not tf.estimator.ModeKeys.PREDICT:
-                mel_loss = self.spec_loss(mel_output, labels.mel,
-                                          labels.spec_loss_mask)
-                done_loss = self.binary_loss(stop_token, labels.done, labels.binary_loss_mask)
+                mel_loss = spec_loss(mel_output, labels.mel,
+                                     labels.spec_loss_mask, params.spec_loss_type)
+                done_loss = binary_loss(stop_token, labels.done, labels.binary_loss_mask)
 
                 blacklist = ["embedding", "bias", "batch_normalization", "output_projection_wrapper/kernel",
                              "lstm_cell",
@@ -436,8 +422,9 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     tf.trainable_variables(), params.l2_regularization_weight,
                     blacklist) if params.use_l2_regularization else 0
 
-                postnet_v2_mel_loss = self.spec_loss(postnet_v2_mel_output, labels.mel,
-                                                     labels.spec_loss_mask) if params.use_postnet_v2 else 0
+                postnet_v2_mel_loss = spec_loss(postnet_v2_mel_output, labels.mel,
+                                                labels.spec_loss_mask,
+                                                params.spec_loss_type) if params.use_postnet_v2 else 0
                 loss = mel_loss + done_loss + regularization_loss + postnet_v2_mel_loss
 
             if is_training:
@@ -493,11 +480,12 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 if params.use_postnet_v2:
                     postnet_v2_mel_output_with_teacher = postnet(mel_output_with_teacher)
 
-                mel_loss_with_teacher = self.spec_loss(mel_output_with_teacher, labels.mel,
-                                                       labels.spec_loss_mask)
-                done_loss_with_teacher = self.binary_loss(stop_token_with_teacher, labels.done, labels.binary_loss_mask)
-                postnet_v2_mel_loss_with_teacher = self.spec_loss(postnet_v2_mel_output_with_teacher, labels.mel,
-                                                                  labels.spec_loss_mask) if params.use_postnet_v2 else 0
+                mel_loss_with_teacher = spec_loss(mel_output_with_teacher, labels.mel,
+                                                  labels.spec_loss_mask, params.spec_loss_type)
+                done_loss_with_teacher = binary_loss(stop_token_with_teacher, labels.done, labels.binary_loss_mask)
+                postnet_v2_mel_loss_with_teacher = spec_loss(postnet_v2_mel_output_with_teacher, labels.mel,
+                                                             labels.spec_loss_mask,
+                                                             params.spec_loss_type) if params.use_postnet_v2 else 0
                 loss_with_teacher = mel_loss_with_teacher + done_loss_with_teacher + regularization_loss + postnet_v2_mel_loss_with_teacher
 
                 eval_metric_ops = self.get_validation_metrics(mel_loss, done_loss, postnet_v2_mel_loss,
@@ -548,21 +536,6 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
         super(DualSourceSelfAttentionTacotronModel, self).__init__(
             model_fn=model_fn, model_dir=model_dir, config=config,
             params=params, warm_start_from=warm_start_from)
-
-    @staticmethod
-    def spec_loss(y_hat, y, mask, n_priority_freq=None, priority_w=0):
-        l1_loss = tf.abs(y_hat - y)
-
-        # Priority L1 loss
-        if n_priority_freq is not None and priority_w > 0:
-            priority_loss = tf.abs(y_hat[:, :, :n_priority_freq] - y[:, :, :n_priority_freq])
-            l1_loss = (1 - priority_w) * l1_loss + priority_w * priority_loss
-
-        return tf.losses.compute_weighted_loss(l1_loss, weights=tf.expand_dims(mask, axis=2))
-
-    @staticmethod
-    def binary_loss(done_hat, done, mask):
-        return tf.losses.sigmoid_cross_entropy(done, tf.squeeze(done_hat, axis=-1), weights=mask)
 
     @staticmethod
     def learning_rate_decay(init_rate, global_step, step_factor):
@@ -719,15 +692,16 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
             global_step = tf.train.get_global_step()
 
             if mode is not tf.estimator.ModeKeys.PREDICT:
-                mgc_loss = self.spec_loss(mgc_output, target[0],
-                                          labels.spec_loss_mask)
+                mgc_loss = spec_loss(mgc_output, target[0],
+                                     labels.spec_loss_mask, params.spec_loss_type)
 
-                lf0_loss = self.classification_loss(lf0_output, target[1], labels.spec_loss_mask)
+                lf0_loss = classification_loss(lf0_output, target[1], labels.spec_loss_mask)
 
-                done_loss = self.binary_loss(stop_token, labels.done, labels.binary_loss_mask)
+                done_loss = binary_loss(stop_token, labels.done, labels.binary_loss_mask)
 
-                postnet_v2_mgc_loss = self.spec_loss(postnet_v2_mgc_output, target,
-                                                     labels.spec_loss_mask) if params.use_postnet_v2 else 0
+                postnet_v2_mgc_loss = spec_loss(postnet_v2_mgc_output, target,
+                                                labels.spec_loss_mask,
+                                                params.spec_loss_type) if params.use_postnet_v2 else 0
                 loss = mgc_loss + lf0_loss * params.lf0_loss_factor + done_loss + postnet_v2_mgc_loss
 
             if is_training:
@@ -782,13 +756,14 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
                 if params.use_postnet_v2:
                     postnet_v2_mgc_output_with_teacher = postnet(mgc_output_with_teacher)
 
-                mgc_loss_with_teacher = self.spec_loss(mgc_output_with_teacher, labels.mgc,
-                                                       labels.spec_loss_mask)
-                lf0_loss_with_teacher = self.classification_loss(lf0_output_with_teacher, target[1],
-                                                                 labels.spec_loss_mask)
-                done_loss_with_teacher = self.binary_loss(stop_token_with_teacher, labels.done, labels.binary_loss_mask)
-                postnet_v2_mgc_loss_with_teacher = self.spec_loss(postnet_v2_mgc_output_with_teacher, labels.mgc,
-                                                                  labels.spec_loss_mask) if params.use_postnet_v2 else 0
+                mgc_loss_with_teacher = spec_loss(mgc_output_with_teacher, labels.mgc,
+                                                  labels.spec_loss_mask, params.spec_loss_type)
+                lf0_loss_with_teacher = classification_loss(lf0_output_with_teacher, target[1],
+                                                            labels.spec_loss_mask)
+                done_loss_with_teacher = binary_loss(stop_token_with_teacher, labels.done, labels.binary_loss_mask)
+                postnet_v2_mgc_loss_with_teacher = spec_loss(postnet_v2_mgc_output_with_teacher, labels.mgc,
+                                                             labels.spec_loss_mask,
+                                                             params.spec_loss_type) if params.use_postnet_v2 else 0
                 loss_with_teacher = mgc_loss_with_teacher + lf0_loss_with_teacher * params.lf0_loss_factor + done_loss_with_teacher + postnet_v2_mgc_loss_with_teacher
 
                 eval_metric_ops = self.get_validation_metrics(mgc_loss, lf0_loss, done_loss, postnet_v2_mgc_loss,
@@ -839,25 +814,6 @@ class DualSourceSelfAttentionMgcLf0TacotronModel(tf.estimator.Estimator):
         super(DualSourceSelfAttentionMgcLf0TacotronModel, self).__init__(
             model_fn=model_fn, model_dir=model_dir, config=config,
             params=params, warm_start_from=warm_start_from)
-
-    @staticmethod
-    def spec_loss(y_hat, y, mask, n_priority_freq=None, priority_w=0):
-        l1_loss = tf.abs(y_hat - y)
-
-        # Priority L1 loss
-        if n_priority_freq is not None and priority_w > 0:
-            priority_loss = tf.abs(y_hat[:, :, :n_priority_freq] - y[:, :, :n_priority_freq])
-            l1_loss = (1 - priority_w) * l1_loss + priority_w * priority_loss
-
-        return tf.losses.compute_weighted_loss(l1_loss, weights=tf.expand_dims(mask, axis=2))
-
-    @staticmethod
-    def classification_loss(y_hat, y, mask):
-        return tf.losses.softmax_cross_entropy(y, y_hat, weights=mask)
-
-    @staticmethod
-    def binary_loss(done_hat, done, mask):
-        return tf.losses.sigmoid_cross_entropy(done, tf.squeeze(done_hat, axis=-1), weights=mask)
 
     @staticmethod
     def learning_rate_decay(init_rate, global_step, step_factor):
@@ -1003,15 +959,16 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
             global_step = tf.train.get_global_step()
 
             if mode is not tf.estimator.ModeKeys.PREDICT:
-                mgc_loss = self.spec_loss(mgc_output, target[0],
-                                          labels.spec_loss_mask)
+                mgc_loss = spec_loss(mgc_output, target[0],
+                                     labels.spec_loss_mask, params.spec_loss_type)
 
-                lf0_loss = self.classification_loss(lf0_output, target[1], labels.spec_loss_mask)
+                lf0_loss = classification_loss(lf0_output, target[1], labels.spec_loss_mask)
 
-                done_loss = self.binary_loss(stop_token, labels.done, labels.binary_loss_mask)
+                done_loss = binary_loss(stop_token, labels.done, labels.binary_loss_mask)
 
-                postnet_v2_mgc_loss = self.spec_loss(postnet_v2_mgc_output, target,
-                                                     labels.spec_loss_mask) if params.use_postnet_v2 else 0
+                postnet_v2_mgc_loss = spec_loss(postnet_v2_mgc_output, target,
+                                                labels.spec_loss_mask,
+                                                params.spec_loss_type) if params.use_postnet_v2 else 0
                 loss = mgc_loss + lf0_loss * params.lf0_loss_factor + done_loss + postnet_v2_mgc_loss
 
             if is_training:
@@ -1064,13 +1021,14 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
                 if params.use_postnet_v2:
                     postnet_v2_mgc_output_with_teacher = postnet(mgc_output_with_teacher)
 
-                mgc_loss_with_teacher = self.spec_loss(mgc_output_with_teacher, labels.mgc,
-                                                       labels.spec_loss_mask)
-                lf0_loss_with_teacher = self.classification_loss(lf0_output_with_teacher, target[1],
-                                                                 labels.spec_loss_mask)
-                done_loss_with_teacher = self.binary_loss(stop_token_with_teacher, labels.done, labels.binary_loss_mask)
-                postnet_v2_mgc_loss_with_teacher = self.spec_loss(postnet_v2_mgc_output_with_teacher, labels.mgc,
-                                                                  labels.spec_loss_mask) if params.use_postnet_v2 else 0
+                mgc_loss_with_teacher = spec_loss(mgc_output_with_teacher, labels.mgc,
+                                                  labels.spec_loss_mask, params.spec_loss_type)
+                lf0_loss_with_teacher = classification_loss(lf0_output_with_teacher, target[1],
+                                                            labels.spec_loss_mask)
+                done_loss_with_teacher = binary_loss(stop_token_with_teacher, labels.done, labels.binary_loss_mask)
+                postnet_v2_mgc_loss_with_teacher = spec_loss(postnet_v2_mgc_output_with_teacher, labels.mgc,
+                                                             labels.spec_loss_mask,
+                                                             params.spec_loss_type) if params.use_postnet_v2 else 0
                 loss_with_teacher = mgc_loss_with_teacher + lf0_loss_with_teacher * params.lf0_loss_factor + done_loss_with_teacher + postnet_v2_mgc_loss_with_teacher
 
                 eval_metric_ops = self.get_validation_metrics(mgc_loss, lf0_loss, done_loss, postnet_v2_mgc_loss,
@@ -1113,25 +1071,6 @@ class MgcLf0TacotronModel(tf.estimator.Estimator):
         super(MgcLf0TacotronModel, self).__init__(
             model_fn=model_fn, model_dir=model_dir, config=config,
             params=params, warm_start_from=warm_start_from)
-
-    @staticmethod
-    def spec_loss(y_hat, y, mask, n_priority_freq=None, priority_w=0):
-        l1_loss = tf.abs(y_hat - y)
-
-        # Priority L1 loss
-        if n_priority_freq is not None and priority_w > 0:
-            priority_loss = tf.abs(y_hat[:, :, :n_priority_freq] - y[:, :, :n_priority_freq])
-            l1_loss = (1 - priority_w) * l1_loss + priority_w * priority_loss
-
-        return tf.losses.compute_weighted_loss(l1_loss, weights=tf.expand_dims(mask, axis=2))
-
-    @staticmethod
-    def classification_loss(y_hat, y, mask):
-        return tf.losses.softmax_cross_entropy(y, y_hat, weights=mask)
-
-    @staticmethod
-    def binary_loss(done_hat, done, mask):
-        return tf.losses.sigmoid_cross_entropy(done, tf.squeeze(done_hat, axis=-1), weights=mask)
 
     @staticmethod
     def learning_rate_decay(init_rate, global_step, step_factor):
