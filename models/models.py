@@ -12,8 +12,8 @@ from modules.regularizers import l2_regularization_loss
 from models.attention_factories import attention_factory, dual_source_attention_factory, \
     force_alignment_attention_factory, \
     force_alignment_dual_source_attention_factory
-from multi_speaker_tacotron.external_embedding import ExternalEmbedding
-from multi_speaker_tacotron.multi_speaker_postnet import MultiSpeakerPostNet
+from multi_speaker_tacotron.modules.external_embedding import ExternalEmbedding
+from multi_speaker_tacotron.modules.multi_speaker_postnet import MultiSpeakerPostNet
 
 
 class ExtendedTacotronV1Model(tf.estimator.Estimator):
