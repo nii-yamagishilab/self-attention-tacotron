@@ -9,6 +9,7 @@ usage: preprocess_vctk.py [options] <in_dir> <out_dir>
 
 options:
     --hparams=<parmas>                  Ad-hoc replacement of hyper parameters. [default: ].
+    --version=<version>                 Version number of VCTK.
     --hparam-json-file=<path>           JSON file contains hyper parameters.
     --source-only                       Process source only.
     --target-only                       Process target only.
@@ -23,12 +24,12 @@ import json
 from pyspark import SparkContext
 from docopt import docopt
 from hparams import hparams, hparams_debug_string
-from preprocess.vctk import VCTK
 
 if __name__ == "__main__":
     args = docopt(__doc__)
     in_dir = args["<in_dir>"]
     out_dir = args["<out_dir>"]
+    version = args["--version"]
     source_only = args["--source-only"]
     target_only = args["--target-only"]
 
@@ -50,7 +51,14 @@ if __name__ == "__main__":
         process_source = True
         process_target = True
 
-    instance = VCTK(in_dir, out_dir, hparams)
+    if version == "0.8":
+        from preprocess.vctk import VCTK
+        instance = VCTK(in_dir, out_dir, hparams)
+    elif version == "0.91":
+        from preprocess.vctk_v091 import VCTK
+        instance = VCTK(in_dir, out_dir, hparams)
+    else:
+        raise ValueError("Supported version of VCTK: 0.8, 0.91")
 
     sc = SparkContext()
 
