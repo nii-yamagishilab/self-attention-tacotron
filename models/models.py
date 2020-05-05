@@ -14,6 +14,7 @@ from models.attention_factories import attention_factory, dual_source_attention_
     force_alignment_dual_source_attention_factory
 from multi_speaker_tacotron.modules.external_embedding import ExternalEmbedding
 from multi_speaker_tacotron.modules.multi_speaker_postnet import MultiSpeakerPostNet
+from multi_speaker_tacotron.modules.multi_speaker_postnet import ChannelEncoderPostNet
 
 
 class ExtendedTacotronV1Model(tf.estimator.Estimator):
@@ -319,10 +320,16 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 speaker_embedding_output = speaker_embedding(
                     features.speaker_id) if params.use_speaker_embedding or params.use_external_speaker_embedding else None
 
+            if params.channel_id_to_postnet:
+                channel_code = ExternalEmbedding(params.channel_id_file, params.num_speakers, embedding_dim=params.channel_id_dim, index_offset=params.speaker_embedding_offset)
+
+            channel_code_output = channel_code(features.speaker_id) if params.channel_id_to_postnet else None
+
             ## resize speaker embedding with a projection layer
             if params.speaker_embedding_projection_out_dim > -1:
                 resize = tf.layers.Dense(params.speaker_embedding_projection_out_dim, activation=tf.nn.relu)
                 speaker_embedding_output = resize(speaker_embedding_output)
+
 
             ## concatenate encoder outputs with speaker embedding along the time axis
             if params.speaker_embedd_to_decoder:
@@ -398,6 +405,13 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                               out_channels=params.postnet_v2_out_channels,
                                               is_training=is_training,
                                               drop_rate=params.postnet_v2_drop_rate) if params.speaker_embedd_to_postnet \
+                    else ChannelEncoderPostNet(out_units=params.num_mels,
+                                               channel_code=channel_code_output,
+                                               num_postnet_layers=params.num_postnet_v2_layers,
+                                               kernel_size=params.postnet_v2_kernel_size,
+                                               out_channels=params.postnet_v2_out_channels,
+                                               is_training=is_training,
+                                               drop_rate=params.postnet_v2_drop_rate) if params.channel_id_to_postnet \
                     else PostNetV2(out_units=params.num_mels,
                                    num_postnet_layers=params.num_postnet_v2_layers,
                                    kernel_size=params.postnet_v2_kernel_size,
