@@ -144,7 +144,6 @@ hparams = tf.contrib.training.HParams(
     language_embedding_file="",
     language_embedding_dim=16,
     language_embedd_to_input=False, # (optional) concatenate language embedding with phone/letter embedding inputs 
-    language_embedd_to_decoder=False, # (optional) input language embedding to decoder by concatenating language embedding with encoder outputs
 
     ## Post net
     post_net_cbhg_out_units=256,
