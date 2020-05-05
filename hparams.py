@@ -139,7 +139,7 @@ hparams = tf.contrib.training.HParams(
     channel_id_dim=8,
 
     ## Language Embedding
-    use_language_embedding=False, # (optional) use any language embeddings
+    use_language_embedding=False, # (optional) use any language or dialect embeddings
     language_embedding_projection_out_dim=-1, # (optional) project language embedding to a different dimension before using it.
     language_embedding_file="",
     language_embedding_dim=16,
