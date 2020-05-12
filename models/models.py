@@ -14,7 +14,7 @@ from models.attention_factories import attention_factory, dual_source_attention_
     force_alignment_dual_source_attention_factory
 from multi_speaker_tacotron.modules.external_embedding import ExternalEmbedding
 from multi_speaker_tacotron.modules.multi_speaker_postnet import MultiSpeakerPostNet
-from multi_speaker_tacotron.modules.multi_speaker_postnet import ChannelEncoderPostNet
+from multi_speaker_tacotron.modules.channel_encoder_postnet import ChannelEncoderPostNet
 
 
 class ExtendedTacotronV1Model(tf.estimator.Estimator):
