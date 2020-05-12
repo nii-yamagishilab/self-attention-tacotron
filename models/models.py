@@ -320,6 +320,17 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 speaker_embedding_output = speaker_embedding(
                     features.speaker_id) if params.use_speaker_embedding or params.use_external_speaker_embedding else None
 
+            if params.use_language_embedding:
+                language_embedding = ExternalEmbedding(params.language_embedding_file, params.num_speakers,
+                                                       embedding_dim=params.language_embedding_dim,
+                                                       index_offset=params.speaker_embedding_offset)
+
+            if params.language_embedding_projection_out_dim > -1:  # resize language embedding with a projection layer
+                def _compose(f, g):
+                    return lambda arg, *args, **kwargs: f(g(arg, *args, **kwargs))
+                resize = tf.layers.Dense(params.language_embedding_projection_out_dim, activation=tf.nn.relu)
+                language_embedding = _compose(resize, language_embedding)
+
             if x > -1:  ## -1 is default (just use the speaker ID associated with the test utterance)
                 language_embedding_output = language_embedding(x)
             else:
@@ -351,19 +362,6 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
             if params.speaker_embedding_projection_out_dim > -1:
                 resize = tf.layers.Dense(params.speaker_embedding_projection_out_dim, activation=tf.nn.relu)
                 speaker_embedding_output = resize(speaker_embedding_output)
-
-            if params.use_language_embedding:
-                language_embedding = ExternalEmbedding(params.language_embedding_file, params.num_speakers,
-                                                       embedding_dim=params.language_embedding_dim,
-                                                       index_offset=params.speaker_embedding_offset)
-
-            if params.language_embedding_projection_out_dim > -1:  # resize language embedding with a projection layer
-                def _compose(f, g):
-                    return lambda arg, *args, **kwargs: f(g(arg, *args, **kwargs))
-                resize = tf.layers.Dense(params.language_embedding_projection_out_dim, activation=tf.nn.relu)
-                language_embedding = _compose(resize, language_embedding)
-
-
 
             ## concatenate encoder outputs with speaker embedding along the time axis
             if params.speaker_embedd_to_decoder:
