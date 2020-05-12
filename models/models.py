@@ -304,13 +304,31 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                                       embedding_dim=params.speaker_embedding_dim,
                                                       index_offset=params.speaker_embedding_offset)
 
-            target = labels.mel if (is_training or is_validation) else features.mel
+            ## resize speaker embedding with a projection layer
+            if params.speaker_embedding_projection_out_dim > -1:
+                def _compose(f, g):
+                    return lambda arg, *args, **kwargs: f(g(arg, *args, **kwargs))
+                resize = tf.layers.Dense(params.speaker_embedding_projection_out_dim, activation=tf.nn.relu)
+                speaker_embedding = _compose(resize, speaker_embedding)
 
-            embedding_output = embedding(features.source)
-            encoder_lstm_output, encoder_self_attention_output, self_attention_alignment = encoder(
-                (embedding_output, accent_embedding(features.accent_type)),
-                input_lengths=features.source_length) if params.use_accent_type else encoder(
-                embedding_output, input_lengths=features.source_length)
+            ## language (dialect) embedding
+            if params.use_language_embedding:
+                language_embedding = ExternalEmbedding(params.language_embedding_file, params.num_speakers,
+                                                       embedding_dim=params.language_embedding_dim,
+                                                       index_offset=params.speaker_embedding_offset)
+
+            # resize language embedding with a projection layer
+            if params.language_embedding_projection_out_dim > -1:  
+                def _compose(f, g):
+                    return lambda arg, *args, **kwargs: f(g(arg, *args, **kwargs))
+                resize = tf.layers.Dense(params.language_embedding_projection_out_dim, activation=tf.nn.relu)
+                language_embedding = _compose(resize, language_embedding)
+
+            ## channel label
+            if params.channel_id_to_postnet:
+                channel_code = ExternalEmbedding(params.channel_id_file, params.num_speakers, embedding_dim=params.channel_id_dim, index_offset=params.speaker_embedding_offset)
+
+            target = labels.mel if (is_training or is_validation) else features.mel
 
             ## choose a speaker ID to synthesize as
             x = params.speaker_for_synthesis
@@ -320,25 +338,12 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 speaker_embedding_output = speaker_embedding(
                     features.speaker_id) if params.use_speaker_embedding or params.use_external_speaker_embedding else None
 
-            if params.use_language_embedding:
-                language_embedding = ExternalEmbedding(params.language_embedding_file, params.num_speakers,
-                                                       embedding_dim=params.language_embedding_dim,
-                                                       index_offset=params.speaker_embedding_offset)
-
-            if params.language_embedding_projection_out_dim > -1:  # resize language embedding with a projection layer
-                def _compose(f, g):
-                    return lambda arg, *args, **kwargs: f(g(arg, *args, **kwargs))
-                resize = tf.layers.Dense(params.language_embedding_projection_out_dim, activation=tf.nn.relu)
-                language_embedding = _compose(resize, language_embedding)
 
             if x > -1:  ## -1 is default (just use the speaker ID associated with the test utterance)
                 language_embedding_output = language_embedding(x)
             else:
                 language_embedding_output = language_embedding(
                     features.speaker_id) if params.use_language_embedding else None
-
-            if params.channel_id_to_postnet:
-                channel_code = ExternalEmbedding(params.channel_id_file, params.num_speakers, embedding_dim=params.channel_id_dim, index_offset=params.speaker_embedding_offset)
 
             channel_code_output = channel_code(features.speaker_id) if params.channel_id_to_postnet else None
 
@@ -358,11 +363,6 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 input_lengths=features.source_length) if params.use_accent_type else encoder(
                 embedding_output, input_lengths=features.source_length)
 
-            ## resize speaker embedding with a projection layer
-            if params.speaker_embedding_projection_out_dim > -1:
-                resize = tf.layers.Dense(params.speaker_embedding_projection_out_dim, activation=tf.nn.relu)
-                speaker_embedding_output = resize(speaker_embedding_output)
-
             ## concatenate encoder outputs with speaker embedding along the time axis
             if params.speaker_embedd_to_decoder:
                 expand_speaker_embedding_output = tf.tile(tf.expand_dims(speaker_embedding_output, axis=1),
@@ -371,6 +371,15 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 encoder_self_attention_output = tf.concat(
                     (encoder_self_attention_output, expand_speaker_embedding_output), axis=-1)
                 
+            # concatenate encoder outputs with language embedding along the time axis
+            if params.language_embedd_to_decoder:
+                expand_language_embedding_output = tf.tile(tf.expand_dims(language_embedding_output, axis=1),
+                                                          [1, tf.shape(encoder_lstm_output)[1], 1])
+                encoder_lstm_output = tf.concat((encoder_lstm_output, expand_language_embedding_output), axis=-1)
+                encoder_self_attention_output = tf.concat(
+                    (encoder_self_attention_output, expand_language_embedding_output), axis=-1)
+
+
             attention1_fn, attention2_fn = dual_source_attention_factory(params)
             mel_output, stop_token, decoder_state = decoder((encoder_lstm_output, encoder_self_attention_output),
                                                             attention1_fn=attention1_fn,
