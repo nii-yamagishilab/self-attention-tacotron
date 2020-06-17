@@ -1,0 +1,468 @@
+{
+  "phones": [
+    {
+      "id": 0,
+      "phone": "pau"
+    },
+    {
+      "id": 1,
+      "phone": "QQ"
+    },
+    {
+      "id": 2,
+      "phone": "QM"
+    },
+    {
+      "id": 3,
+      "phone": "A"
+    },
+    {
+      "id": 4,
+      "phone": "a:"
+    },
+    {
+      "id": 5,
+      "phone": ">"
+    },
+    {
+      "id": 6,
+      "phone": "tra"
+    },
+    {
+      "id": 7,
+      "phone": "t:ra"
+    },
+    {
+      "id": 8,
+      "phone": "h:"
+    },
+    {
+      "id": 9,
+      "phone": ">:"
+    },
+    {
+      "id": 10,
+      "phone": "A:"
+    },
+    {
+      "id": 11,
+      "phone": "i"
+    },
+    {
+      "id": 12,
+      "phone": "i:"
+    },
+    {
+      "id": 13,
+      "phone": "u"
+    },
+    {
+      "id": 14,
+      "phone": "u:"
+    },
+    {
+      "id": 15,
+      "phone": "9r="
+    },
+    {
+      "id": 16,
+      "phone": "9r:"
+    },
+    {
+      "id": 17,
+      "phone": "rr="
+    },
+    {
+      "id": 18,
+      "phone": "rr"
+    },
+    {
+      "id": 19,
+      "phone": "r"
+    },
+    {
+      "id": 20,
+      "phone": "rrh"
+    },
+    {
+      "id": 21,
+      "phone": "l="
+    },
+    {
+      "id": 22,
+      "phone": "@"
+    },
+    {
+      "id": 23,
+      "phone": "@:"
+    },
+    {
+      "id": 24,
+      "phone": "e:"
+    },
+    {
+      "id": 25,
+      "phone": "aI"
+    },
+    {
+      "id": 26,
+      "phone": ">I"
+    },
+    {
+      "id": 27,
+      "phone": "o:"
+    },
+    {
+      "id": 28,
+      "phone": "aU"
+    },
+    {
+      "id": 29,
+      "phone": "oU"
+    },
+    {
+      "id": 30,
+      "phone": "oI"
+    },
+    {
+      "id": 31,
+      "phone": "q"
+    },
+    {
+      "id": 32,
+      "phone": "k"
+    },
+    {
+      "id": 33,
+      "phone": "kh"
+    },
+    {
+      "id": 34,
+      "phone": "G"
+    },
+    {
+      "id": 35,
+      "phone": "g"
+    },
+    {
+      "id": 36,
+      "phone": "gh"
+    },
+    {
+      "id": 37,
+      "phone": "x"
+    },
+    {
+      "id": 38,
+      "phone": "N"
+    },
+    {
+      "id": 39,
+      "phone": "c"
+    },
+    {
+      "id": 40,
+      "phone": "ch"
+    },
+    {
+      "id": 41,
+      "phone": "z"
+    },
+    {
+      "id": 42,
+      "phone": "z~"
+    },
+    {
+      "id": 43,
+      "phone": "J"
+    },
+    {
+      "id": 44,
+      "phone": "Jh"
+    },
+    {
+      "id": 45,
+      "phone": "n~"
+    },
+    {
+      "id": 46,
+      "phone": "T"
+    },
+    {
+      "id": 47,
+      "phone": "tB"
+    },
+    {
+      "id": 48,
+      "phone": "tBh"
+    },
+    {
+      "id": 49,
+      "phone": "D"
+    },
+    {
+      "id": 50,
+      "phone": "d"
+    },
+    {
+      "id": 51,
+      "phone": "d~"
+    },
+    {
+      "id": 52,
+      "phone": "dB"
+    },
+    {
+      "id": 53,
+      "phone": "dBh"
+    },
+    {
+      "id": 54,
+      "phone": "n"
+    },
+    {
+      "id": 55,
+      "phone": "nX"
+    },
+    {
+      "id": 56,
+      "phone": "nB"
+    },
+    {
+      "id": 57,
+      "phone": "tr"
+    },
+    {
+      "id": 58,
+      "phone": "tR"
+    },
+    {
+      "id": 59,
+      "phone": "dr"
+    },
+    {
+      "id": 60,
+      "phone": "dR"
+    },
+    {
+      "id": 61,
+      "phone": "nr"
+    },
+    {
+      "id": 62,
+      "phone": "p"
+    },
+    {
+      "id": 63,
+      "phone": "P"
+    },
+    {
+      "id": 64,
+      "phone": "ph"
+    },
+    {
+      "id": 65,
+      "phone": "f"
+    },
+    {
+      "id": 66,
+      "phone": "b"
+    },
+    {
+      "id": 67,
+      "phone": "bh"
+    },
+    {
+      "id": 68,
+      "phone": "m"
+    },
+    {
+      "id": 69,
+      "phone": "M"
+    },
+    {
+      "id": 70,
+      "phone": "j"
+    },
+    {
+      "id": 71,
+      "phone": "9rB"
+    },
+    {
+      "id": 72,
+      "phone": "9r"
+    },
+    {
+      "id": 73,
+      "phone": "l"
+    },
+    {
+      "id": 74,
+      "phone": "lr"
+    },
+    {
+      "id": 75,
+      "phone": "lr="
+    },
+    {
+      "id": 76,
+      "phone": "V"
+    },
+    {
+      "id": 77,
+      "phone": "v"
+    },
+    {
+      "id": 78,
+      "phone": "c}"
+    },
+    {
+      "id": 79,
+      "phone": "S"
+    },
+    {
+      "id": 80,
+      "phone": "sr"
+    },
+    {
+      "id": 81,
+      "phone": "s"
+    },
+    {
+      "id": 82,
+      "phone": "h"
+    },
+    {
+      "id": 83,
+      "phone": "s~"
+    },
+    {
+      "id": 84,
+      "phone": "t"
+    },
+    {
+      "id": 85,
+      "phone": "t~"
+    },
+    {
+      "id": 86,
+      "phone": "hv"
+    },
+    {
+      "id": 87,
+      "phone": "H"
+    },
+    {
+      "id": 88,
+      "phone": "n:"
+    },
+    {
+      "id": 89,
+      "phone": "E"
+    },
+    {
+      "id": 90,
+      "phone": "e"
+    },
+    {
+      "id": 91,
+      "phone": "o"
+    },
+    {
+      "id": 92,
+      "phone": "6"
+    },
+    {
+      "id": 93,
+      "phone": "6j"
+    },
+    {
+      "id": 94,
+      "phone": "6w"
+    },
+    {
+      "id": 95,
+      "phone": "9:"
+    },
+    {
+      "id": 96,
+      "phone": "9y"
+    },
+    {
+      "id": 97,
+      "phone": "E:"
+    },
+    {
+      "id": 98,
+      "phone": "O:"
+    },
+    {
+      "id": 99,
+      "phone": "O:j"
+    },
+    {
+      "id": 100,
+      "phone": "a:j"
+    },
+    {
+      "id": 101,
+      "phone": "a:w"
+    },
+    {
+      "id": 102,
+      "phone": "dz"
+    },
+    {
+      "id": 103,
+      "phone": "dZ"
+    },
+    {
+      "id": 104,
+      "phone": "Z"
+    },
+    {
+      "id": 105,
+      "phone": "ej"
+    },
+    {
+      "id": 106,
+      "phone": "gw"
+    },
+    {
+      "id": 107,
+      "phone": "iw"
+    },
+    {
+      "id": 108,
+      "phone": "kw"
+    },
+    {
+      "id": 109,
+      "phone": "ow"
+    },
+    {
+      "id": 110,
+      "phone": "ts"
+    },
+    {
+      "id": 111,
+      "phone": "tS"
+    },
+    {
+      "id": 112,
+      "phone": "u:j"
+    },
+    {
+      "id": 113,
+      "phone": "w"
+    },
+    {
+      "id": 114,
+      "phone": "y:"
+    },
+    {
+      "id": 115,
+      "phone": "LB"
+    }
+  ]
+}

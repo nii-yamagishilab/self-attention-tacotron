@@ -109,3 +109,15 @@ py_binary(
         ":preprocess",
     ],
 )
+
+py_binary(
+    name = "preprocess_blizzard2011",
+    srcs = [
+        "preprocess_blizzard2011.py",
+    ],
+    srcs_version = "PY3ONLY",
+    python_version = "PY3",
+    deps = [
+        ":preprocess",
+    ],
+)

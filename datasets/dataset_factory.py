@@ -7,6 +7,7 @@
 
 from datasets.vctk.dataset import DatasetSource as VCTKDatasetSource
 from datasets.ljspeech.dataset import DatasetSource as LJSpeechDatasetSource
+from datasets.blizzard2011.dataset import DatasetSource as Blizzard2011DatasetSource
 
 
 def dataset_factory(source, target, hparams):
@@ -14,6 +15,8 @@ def dataset_factory(source, target, hparams):
         return VCTKDatasetSource(source, target, hparams)
     elif hparams.dataset == "ljspeech.dataset.DatasetSource":
         return LJSpeechDatasetSource(source, target, hparams)
+    elif hparams.dataset == "blizzard2011.dataset.DatasetSource":
+        return Blizzard2011DatasetSource(source, target, hparams)
     else:
         raise ValueError("Unkown dataset")
 
@@ -28,8 +31,13 @@ def create_from_tfrecord_files(source_files, target_files, hparams, cycle_length
                                                             prefetch_input_elements=prefetch_input_elements)
     elif hparams.dataset == "ljspeech.dataset.DatasetSource":
         return LJSpeechDatasetSource.create_from_tfrecord_files(source_files, target_files, hparams,
-                                                            cycle_length=cycle_length,
-                                                            buffer_output_elements=buffer_output_elements,
-                                                            prefetch_input_elements=prefetch_input_elements)
+                                                                cycle_length=cycle_length,
+                                                                buffer_output_elements=buffer_output_elements,
+                                                                prefetch_input_elements=prefetch_input_elements)
+    elif hparams.dataset == "blizzard2011.dataset.DatasetSource":
+        return Blizzard2011DatasetSource.create_from_tfrecord_files(source_files, target_files, hparams,
+                                                                    cycle_length=cycle_length,
+                                                                    buffer_output_elements=buffer_output_elements,
+                                                                    prefetch_input_elements=prefetch_input_elements)
     else:
         raise ValueError("Unkown dataset")

@@ -6,6 +6,7 @@
 """  """
 
 import tensorflow as tf
+import os
 
 hparams = tf.contrib.training.HParams(
 
@@ -35,7 +36,7 @@ hparams = tf.contrib.training.HParams(
     lf0_loss_factor=0.5,
 
     # Dataset
-    dataset="vctk.dataset.DatasetSource",  # vctk.dataset.DatasetSource
+    dataset="vctk.dataset.DatasetSource",  # vctk.dataset.DatasetSource | ljspeech.dataset.DatasetSource | blizzard2011.dataset.DatasetSource
     num_symbols=256,
     source="phoneme",  # phone, phoneme
     source_file_extension="source.tfrecord",
@@ -210,6 +211,11 @@ hparams = tf.contrib.training.HParams(
     trim_frame_length=1024,
     trim_hop_length=256,
     num_silent_frames=4,
+
+    # Flite
+    phoneme='none',  # none, flite
+    flite_binary_path='',
+    phoneset_path=os.path.dirname(__file__) + '/extensions/phoneset/us_phoneset.json',
 )
 
 
