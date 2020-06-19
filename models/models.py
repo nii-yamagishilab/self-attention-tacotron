@@ -14,6 +14,7 @@ from models.attention_factories import attention_factory, dual_source_attention_
     force_alignment_dual_source_attention_factory
 from multi_speaker_tacotron.modules.external_embedding import ExternalEmbedding
 from multi_speaker_tacotron.modules.multi_speaker_postnet import MultiSpeakerPostNet
+from multi_speaker_tacotron.modules.channel_encoder_postnet import ChannelEncoderPostNet
 
 
 class ExtendedTacotronV1Model(tf.estimator.Estimator):
@@ -303,13 +304,31 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                                       embedding_dim=params.speaker_embedding_dim,
                                                       index_offset=params.speaker_embedding_offset)
 
-            target = labels.mel if (is_training or is_validation) else features.mel
+            ## resize speaker embedding with a projection layer
+            if params.speaker_embedding_projection_out_dim > -1:
+                def _compose(f, g):
+                    return lambda arg, *args, **kwargs: f(g(arg, *args, **kwargs))
+                resize = tf.layers.Dense(params.speaker_embedding_projection_out_dim, activation=tf.nn.relu)
+                speaker_embedding = _compose(resize, speaker_embedding)
 
-            embedding_output = embedding(features.source)
-            encoder_lstm_output, encoder_self_attention_output, self_attention_alignment = encoder(
-                (embedding_output, accent_embedding(features.accent_type)),
-                input_lengths=features.source_length) if params.use_accent_type else encoder(
-                embedding_output, input_lengths=features.source_length)
+            ## language (dialect) embedding
+            if params.use_language_embedding:
+                language_embedding = ExternalEmbedding(params.language_embedding_file, params.num_speakers,
+                                                       embedding_dim=params.language_embedding_dim,
+                                                       index_offset=params.speaker_embedding_offset)
+
+            # resize language embedding with a projection layer
+            if params.language_embedding_projection_out_dim > -1:  
+                def _compose(f, g):
+                    return lambda arg, *args, **kwargs: f(g(arg, *args, **kwargs))
+                resize = tf.layers.Dense(params.language_embedding_projection_out_dim, activation=tf.nn.relu)
+                language_embedding = _compose(resize, language_embedding)
+
+            ## channel label
+            if params.channel_id_to_postnet:
+                channel_code = ExternalEmbedding(params.channel_id_file, params.num_speakers, embedding_dim=params.channel_id_dim, index_offset=params.speaker_embedding_offset)
+
+            target = labels.mel if (is_training or is_validation) else features.mel
 
             ## choose a speaker ID to synthesize as
             x = params.speaker_for_synthesis
@@ -319,10 +338,30 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 speaker_embedding_output = speaker_embedding(
                     features.speaker_id) if params.use_speaker_embedding or params.use_external_speaker_embedding else None
 
-            ## resize speaker embedding with a projection layer
-            if params.speaker_embedding_projection_out_dim > -1:
-                resize = tf.layers.Dense(params.speaker_embedding_projection_out_dim, activation=tf.nn.relu)
-                speaker_embedding_output = resize(speaker_embedding_output)
+
+            if x > -1:  ## -1 is default (just use the speaker ID associated with the test utterance)
+                language_embedding_output = language_embedding(x)
+            else:
+                language_embedding_output = language_embedding(
+                    features.speaker_id) if params.use_language_embedding else None
+
+            channel_code_output = channel_code(features.speaker_id) if params.channel_id_to_postnet else None
+
+            ## get phone/letter embeddings
+            embedding_output = embedding(features.source) # phone/letter embedding 
+            # add language embedding as bias along the time axis to embedding_output 
+            if params.language_embedd_to_input:
+                language_embedd_input_projection_layer = tf.layers.Dense(params.embedding_dim)
+                language_embedd_input_projected = language_embedd_input_projection_layer(language_embedding_output)
+                expand_language_embedding_input = tf.tile(tf.expand_dims(language_embedd_input_projected, axis=1),
+                                                          [1, tf.shape(embedding_output)[1], 1])
+                embedding_output = embedding_output + expand_language_embedding_input # as bias
+
+            ## pass input embeddings to encoder
+            encoder_lstm_output, encoder_self_attention_output, self_attention_alignment = encoder(
+                (embedding_output, accent_embedding(features.accent_type)),
+                input_lengths=features.source_length) if params.use_accent_type else encoder(
+                embedding_output, input_lengths=features.source_length)
 
             ## concatenate encoder outputs with speaker embedding along the time axis
             if params.speaker_embedd_to_decoder:
@@ -332,6 +371,15 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                 encoder_self_attention_output = tf.concat(
                     (encoder_self_attention_output, expand_speaker_embedding_output), axis=-1)
                 
+            # concatenate encoder outputs with language embedding along the time axis
+            if params.language_embedd_to_decoder:
+                expand_language_embedding_output = tf.tile(tf.expand_dims(language_embedding_output, axis=1),
+                                                          [1, tf.shape(encoder_lstm_output)[1], 1])
+                encoder_lstm_output = tf.concat((encoder_lstm_output, expand_language_embedding_output), axis=-1)
+                encoder_self_attention_output = tf.concat(
+                    (encoder_self_attention_output, expand_language_embedding_output), axis=-1)
+
+
             attention1_fn, attention2_fn = dual_source_attention_factory(params)
             mel_output, stop_token, decoder_state = decoder((encoder_lstm_output, encoder_self_attention_output),
                                                             attention1_fn=attention1_fn,
@@ -389,7 +437,6 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                     alignment2 = tf.transpose(decoder_state[0].alignment_history[1].stack(), [1, 2, 0])
                     decoder_self_attention_alignment = []  # ToDo: fill decoder_self_attention_alignment at training time
 
-
             if params.use_postnet_v2:
                 postnet = MultiSpeakerPostNet(out_units=params.num_mels,
                                               speaker_embed=speaker_embedding_output,
@@ -398,6 +445,13 @@ class DualSourceSelfAttentionTacotronModel(tf.estimator.Estimator):
                                               out_channels=params.postnet_v2_out_channels,
                                               is_training=is_training,
                                               drop_rate=params.postnet_v2_drop_rate) if params.speaker_embedd_to_postnet \
+                    else ChannelEncoderPostNet(out_units=params.num_mels,
+                                               channel_code=channel_code_output,
+                                               num_postnet_layers=params.num_postnet_v2_layers,
+                                               kernel_size=params.postnet_v2_kernel_size,
+                                               out_channels=params.postnet_v2_out_channels,
+                                               is_training=is_training,
+                                               drop_rate=params.postnet_v2_drop_rate) if params.channel_id_to_postnet \
                     else PostNetV2(out_units=params.num_mels,
                                    num_postnet_layers=params.num_postnet_v2_layers,
                                    kernel_size=params.postnet_v2_kernel_size,

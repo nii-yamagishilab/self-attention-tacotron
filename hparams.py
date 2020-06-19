@@ -133,6 +133,19 @@ hparams = tf.contrib.training.HParams(
     speaker_embedd_to_decoder=False, # (optional) input speaker embedding to decoder by concatenating spk embedding with encoder outputs
     speaker_embedd_to_postnet=False, # (optional) input speaker embedding to each convolution layers of the postnet
 
+    ## Channel encoder
+    channel_id_to_postnet=False, ## (optional) input channel labels from a file to the postnet.
+    channel_id_file="",
+    channel_id_dim=8,
+
+    ## Language Embedding
+    use_language_embedding=False, # (optional) use any language or dialect embeddings
+    language_embedding_projection_out_dim=-1, # (optional) project language embedding to a different dimension before using it.
+    language_embedding_file="",
+    language_embedding_dim=16,
+    language_embedd_to_input=False, # (optional) concatenate language embedding with phone/letter embedding inputs 
+    language_embedd_to_decoder=False, # (optional) input language embedding to decoder by concatenating with encoder outputs
+
     ## Post net
     post_net_cbhg_out_units=256,
     post_net_conv_channels=128,
